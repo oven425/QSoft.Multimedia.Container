@@ -6,10 +6,5 @@ using System.Threading.Tasks;
 
 namespace QSoft.Media
 {
-    internal class Program
-    {
-        static void Main(string[] args)
-        {
-        }
-    }
+
 }
