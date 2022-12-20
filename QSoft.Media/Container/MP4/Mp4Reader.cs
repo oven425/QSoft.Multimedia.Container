@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 
-namespace QSoft.Media.MP4
+namespace QSoft.Media.Container.MP4
 {
     public class Mp4Reader
     {
@@ -48,7 +48,7 @@ namespace QSoft.Media.MP4
             return result;
         }
 
-        public static byte[] Reverse(this byte[] src)
+        static byte[] Reverse(this byte[] src)
         {
             Array.Reverse(src);
             return src;

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace QSoft.Media.MP4
+namespace QSoft.Media.Container.MP4
 {
     public class box
     {
@@ -20,7 +20,7 @@ namespace QSoft.Media.MP4
         public string[] compatible_brands { set; get; }
     }
 
-    public class moox: box
+    public class moov: box
     {
 
     }

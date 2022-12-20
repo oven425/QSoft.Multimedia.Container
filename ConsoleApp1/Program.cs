@@ -1,4 +1,4 @@
-﻿using QSoft.Media.MP4;
+﻿using QSoft.Media.Container.MP4;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,7 +12,7 @@ namespace ConsoleApp1
         static void Main(string[] args)
         {
             Mp4Reader mp4r = new Mp4Reader();
-            mp4r.Open("sample-mp4-file-small (2).mp4");
+            mp4r.Open("../../../sample-mp4-file-small (2).mp4");
         }
     }
 }
