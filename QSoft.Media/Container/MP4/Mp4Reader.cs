@@ -16,7 +16,10 @@ namespace QSoft.Media.Container.MP4
             this.m_File = File.OpenRead(filename);
             this.m_Reader = new BinaryReader(this.m_File);
             var boxs = this.m_Reader.ParseBoxs(null);
-            //var ftyp = this.m_Reader.Parsefype();
+            foreach(var oo in boxs)
+            {
+                this.m_Reader.ParseBoxs(oo);
+            }
             return true;
         }
 
@@ -48,13 +51,19 @@ namespace QSoft.Media.Container.MP4
             return result;
         }
 
+        public static void ParseAllBox(this BinaryReader src, Action<box> child)
+        {
+
+        }
+
+
         public static List<box> ParseBoxs(this BinaryReader src, box root)
         {
             var result = new List<box>();
             var endpos = src.BaseStream.Length;
             if(root!= null)
             {
-                src.BaseStream.Seek(root.Pos, SeekOrigin.Begin);
+                src.BaseStream.Seek(root.Pos+ root.Size==1?root.BigSize:root.Size, SeekOrigin.Begin);
             }
             while(src.BaseStream.Position < endpos)
             {
