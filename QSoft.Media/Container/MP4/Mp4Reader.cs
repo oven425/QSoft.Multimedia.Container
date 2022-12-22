@@ -15,7 +15,8 @@ namespace QSoft.Media.Container.MP4
         {
             this.m_File = File.OpenRead(filename);
             this.m_Reader = new BinaryReader(this.m_File);
-            var ftyp = this.m_Reader.Parsefype();
+            var boxs = this.m_Reader.ParseBoxs(null);
+            //var ftyp = this.m_Reader.Parsefype();
             return true;
         }
 
@@ -36,7 +37,6 @@ namespace QSoft.Media.Container.MP4
 
     public static class Mp4ParseEx
     {
-
         public static ftyp Parsefype(this BinaryReader src)
         {
             ftyp result = new ftyp();
@@ -45,6 +45,33 @@ namespace QSoft.Media.Container.MP4
             result.major_brand = Encoding.ASCII.GetString(src.ReadBytes(4));
             result.minor_version = BitConverter.ToInt32(src.ReadBytes(4).Reverse(), 0);
             var com = Encoding.ASCII.GetString(src.ReadBytes(result.Size - (int)src.BaseStream.Position));
+            return result;
+        }
+
+        public static List<box> ParseBoxs(this BinaryReader src, box root)
+        {
+            var result = new List<box>();
+            var endpos = src.BaseStream.Length;
+            if(root!= null)
+            {
+                src.BaseStream.Seek(root.Pos, SeekOrigin.Begin);
+            }
+            while(src.BaseStream.Position < endpos)
+            {
+                int offset = 8;
+                var box = new box();
+                box.Pos= src.BaseStream.Position;
+                box.Size = BitConverter.ToInt32(src.ReadBytes(4).Reverse(), 0);
+                box.Type = Encoding.ASCII.GetString(src.ReadBytes(4));
+                if (box.Size == 1)
+                {
+                    box.BigSize = BitConverter.ToInt64(src.ReadBytes(8).Reverse(), 0);
+                    offset = 16;
+                }
+                src.BaseStream.Seek(box.Size - offset, SeekOrigin.Current);
+                result.Add(box);
+            }
+            
             return result;
         }
 

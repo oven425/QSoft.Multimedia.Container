@@ -8,6 +8,7 @@ namespace QSoft.Media.Container.MP4
 {
     public class box
     {
+        public long Pos { set; get; }
         public int Size { set; get; }
         public string Type { set; get; }
         public long BigSize { set; get; }
