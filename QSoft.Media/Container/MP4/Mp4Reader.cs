@@ -16,7 +16,10 @@ namespace QSoft.Media.Container.MP4
             this.m_File = File.OpenRead(filename);
             this.m_Reader = new BinaryReader(this.m_File);
             var boxs = this.m_Reader.ParseBoxs(null);
-            //var ftyp = this.m_Reader.Parsefype();
+            foreach(var box in boxs)
+            {
+                this.m_Reader.ParseBoxs(box);
+            }
             return true;
         }
 
@@ -37,15 +40,36 @@ namespace QSoft.Media.Container.MP4
 
     public static class Mp4ParseEx
     {
-        public static ftyp Parsefype(this BinaryReader src)
+        public static int ReadInt(this BinaryReader src)
         {
-            ftyp result = new ftyp();
-            result.Size = BitConverter.ToInt32(src.ReadBytes(4).Reverse(), 0);
-            result.Type = Encoding.ASCII.GetString(src.ReadBytes(4));
+            return BitConverter.ToInt32(src.ReadBytes(4).Reverse(), 0);
+        }
+
+        public static string ReadType(this BinaryReader src)
+        {
+            return Encoding.ASCII.GetString(src.ReadBytes(4));
+        }
+        public static ftyp Parsefype(this BinaryReader src, box box)
+        {
+            ftyp result = new ftyp(box);
+            //result.Size = BitConverter.ToInt32(src.ReadBytes(4).Reverse(), 0);
+            //result.Type = Encoding.ASCII.GetString(src.ReadBytes(4));
             result.major_brand = Encoding.ASCII.GetString(src.ReadBytes(4));
             result.minor_version = BitConverter.ToInt32(src.ReadBytes(4).Reverse(), 0);
             var com = Encoding.ASCII.GetString(src.ReadBytes(result.Size - (int)src.BaseStream.Position));
             return result;
+        }
+
+        public static moov Parsemoov(this BinaryReader src)
+        {
+            moov result = new moov();
+            
+            return result;
+        }
+
+        public static mvhd Parsemvhd(this BinaryReader src)
+        {
+            return new mvhd();
         }
 
         public static List<box> ParseBoxs(this BinaryReader src, box root)
@@ -54,20 +78,21 @@ namespace QSoft.Media.Container.MP4
             var endpos = src.BaseStream.Length;
             if(root!= null)
             {
-                src.BaseStream.Seek(root.Pos, SeekOrigin.Begin);
+                src.BaseStream.Seek(root.Pos+root.Offset, SeekOrigin.Begin);
             }
             while(src.BaseStream.Position < endpos)
             {
                 int offset = 8;
                 var box = new box();
                 box.Pos= src.BaseStream.Position;
-                box.Size = BitConverter.ToInt32(src.ReadBytes(4).Reverse(), 0);
-                box.Type = Encoding.ASCII.GetString(src.ReadBytes(4));
+                box.Size = src.ReadInt();
+                box.Type = src.ReadType();
                 if (box.Size == 1)
                 {
                     box.BigSize = BitConverter.ToInt64(src.ReadBytes(8).Reverse(), 0);
                     offset = 16;
                 }
+                box.Offset = offset;
                 src.BaseStream.Seek(box.Size - offset, SeekOrigin.Current);
                 result.Add(box);
             }
@@ -80,8 +105,6 @@ namespace QSoft.Media.Container.MP4
             Array.Reverse(src);
             return src;
         }
-
-
 
     }
 }

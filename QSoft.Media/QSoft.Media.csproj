@@ -46,7 +46,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="IMediaReader.cs" />
     <Compile Include="Container\MP4\Box.cs" />
     <Compile Include="Container\MP4\Mp4Reader.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
