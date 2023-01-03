@@ -51,7 +51,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\QSoft.Media\QSoft.Media.csproj">
-      <Project>{26b90d50-409c-475b-b185-94edc6e5b7c0}</Project>
+      <Project>{c967e739-b3a7-46de-b15d-ca700eb2941a}</Project>
       <Name>QSoft.Media</Name>
     </ProjectReference>
   </ItemGroup>
