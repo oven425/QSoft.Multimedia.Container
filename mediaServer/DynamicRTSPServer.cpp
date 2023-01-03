@@ -21,6 +21,9 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #include "DynamicRTSPServer.hh"
 #include <liveMedia.hh>
 #include <string.h>
+#include <cerrno>
+#include <iostream>
+#include <filesystem>
 
 DynamicRTSPServer*
 DynamicRTSPServer::createNew(UsageEnvironment& env, Port ourPort,
@@ -53,6 +56,9 @@ void DynamicRTSPServer
 			   Boolean isFirstLookupInSession) {
   // First, check whether the specified "streamName" exists as a local file:
   FILE* fid = fopen(streamName, "rb");
+  //FILE* fid1 = fopen("test.264", "rb");
+  char dir[1024] = { 0 };
+  ::GetCurrentDirectoryA(1024, dir);
   Boolean const fileExists = fid != NULL;
 
   // Next, check whether we already have a "ServerMediaSession" for this file:
@@ -61,6 +67,14 @@ void DynamicRTSPServer
 
   // Handle the four possibilities for "fileExists" and "smsExists":
   if (!fileExists) {
+      char msg[1024] = { 0 };
+      ::sprintf(msg, "%s", strerror(errno));
+      const std::filesystem::path sandbox{ "."};
+      auto fff = sandbox.c_str();
+      for (auto const& dir_entry : std::filesystem::directory_iterator{ sandbox })
+      {
+          std::cout << dir_entry.path() << '\n';
+      }
     if (smsExists) {
       // "sms" was created for a file that no longer exists. Remove it:
       removeServerMediaSession(sms);
