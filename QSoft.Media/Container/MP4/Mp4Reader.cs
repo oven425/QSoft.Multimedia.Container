@@ -13,6 +13,9 @@ namespace QSoft.Media.Container.MP4
         BinaryReader m_Reader;
         public bool Open(string filename)
         {
+            var moov = new moov();
+            box bb = new moov();
+            
             this.m_File = File.OpenRead(filename);
             this.m_Reader = new BinaryReader(this.m_File);
             var boxs = this.m_Reader.ParseBoxs(null);
@@ -40,6 +43,10 @@ namespace QSoft.Media.Container.MP4
 
     public static class Mp4ParseEx
     {
+        public static void Readmoov(this moov src, BinaryReader stream)
+        {
+
+        }
         public static int ReadInt(this BinaryReader src)
         {
             return BitConverter.ToInt32(src.ReadBytes(4).Reverse(), 0);

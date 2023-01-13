@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -22,6 +23,10 @@ namespace QSoft.Media.Container.MP4
         public int Size { set; get; }
         public string Type { set; get; }
         public long BigSize { set; get; }
+        virtual public void Parse(BinaryReader br)
+        {
+
+        }
     }
 
     public class ftyp: box
@@ -34,6 +39,10 @@ namespace QSoft.Media.Container.MP4
         public string major_brand { set; get; }
         public int minor_version { set; get; }
         public string[] compatible_brands { set; get; }
+        public override void Parse(BinaryReader br)
+        {
+            base.Parse(br);
+        }
     }
 
     public class moov: box
