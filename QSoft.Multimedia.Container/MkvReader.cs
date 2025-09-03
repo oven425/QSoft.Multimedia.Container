@@ -2,26 +2,79 @@
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
-
+//https://www.matroska.org/index.html
+//https://blog.csdn.net/xuweilmy/article/details/8985002
 namespace QSoft.Multimedia.Container
 {
     public class MkvReader(Stream stream)
     {
         public void Open()
         {
-            //Span<byte> buf = stackalloc byte[1024];
-            //stream.Read(buf);
-            //foreach(var oo in buf[0 .. 50])
-            //{
-            //    System.Diagnostics.Trace.Write($"{oo:X}-");
-            //}
-            var ebml_id = GetEBML_ID();
+            while (stream.Position < stream.Length)
+            {
+                var ebml_id = GetEBML_ID();
+                var ebml_size = GetEBML_Size();
+                switch (ebml_id)
+                {
+                    case 0x1a45dfa3:
+                        ReadEBML(ebml_size);
+                        break;
+                    case 0x18538067://Segment
+                        ReadSegment(ebml_size);
+                        break;
+                    case 0x114D9B74://SeekHead
+                        ReadSeekHeader(ebml_size);
+                        break;
+                    case 0x00004dbb://Seek
+                        break;
+                    case 0x000053ab://SeekID
+                        stream.Position += ebml_size;
+                        break;
+                    case 0x000053ac://SeekPosition
+                        stream.Position += ebml_size;
+                        break;
+                    case 0xBF://void
+                        stream.Position += ebml_size;
+                        break;
+                    default:
+                        stream.Position += ebml_size;
+                        break;
+                }
+            }
+        }
 
+        void ReadSeekHeader(int size)
+        {
+
+        }
+
+        void ReadSegment(int size)
+        {
+
+        }
+
+        void ReadEBML(int size)
+        {
+            stream.Position += size;
+
+        }
+
+        void EnumableEBML()
+        {
+            var ebml_id = GetEBML_ID();
+            var ebml_size = GetEBML_Size();
+            System.Diagnostics.Trace.WriteLine($"0x{ebml_id:X} {ebml_size}");
+            EnumableEBML();
+        }
+
+        int GetEBML_Size()
+        {
             byte first = (byte)stream.ReadByte();
             int length = 1;
             byte mask = 0x80;
@@ -34,17 +87,14 @@ namespace QSoft.Multimedia.Container
             if (length > 8)
                 throw new InvalidOperationException("Invalid EBML size encoding");
             int value = (int)(first & (mask - 1));
-            if(length >1)
+            if (length > 1)
             {
-                Span<byte> buffer = stackalloc byte[length-1];
+                Span<byte> buffer = stackalloc byte[length - 1];
                 stream.Read(buffer);
-                for (int i = 1; i < length; i++)
+                for (int i = 0; i < length-1; i++)
                     value = (value << 8) | buffer[i];
             }
-
-
-            Span<byte> buffer1 = stackalloc byte[value*2];
-            stream.Read(buffer1);
+            return value;
         }
 
         int GetEBML_ID()
@@ -73,6 +123,11 @@ namespace QSoft.Multimedia.Container
         {
 
         }
+    }
+
+    public class EBMLHeader
+    {
+        
     }
 
 }
