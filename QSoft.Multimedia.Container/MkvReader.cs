@@ -26,10 +26,8 @@ namespace QSoft.Multimedia.Container
                         ReadEBML(ebml_size);
                         break;
                     case 0x18538067://Segment
-                        ReadSegment(ebml_size);
                         break;
                     case 0x114D9B74://SeekHead
-                        ReadSeekHeader(ebml_size);
                         break;
                     case 0x00004dbb://Seek
                         break;
@@ -39,7 +37,16 @@ namespace QSoft.Multimedia.Container
                     case 0x000053ac://SeekPosition
                         stream.Position += ebml_size;
                         break;
+                    case 0x1549A966://Segment info
+                        break;
+                    case 0x4489://Segment Duration
+                        stream.Position += ebml_size;
+                        break;
+                    case 0x2AD7B1://TimestampScale
+                        stream.Position += ebml_size;
+                        break;
                     case 0xBF://void
+                    case 0x000000ec://void
                         stream.Position += ebml_size;
                         break;
                     default:
@@ -124,10 +131,4 @@ namespace QSoft.Multimedia.Container
 
         }
     }
-
-    public class EBMLHeader
-    {
-        
-    }
-
 }
