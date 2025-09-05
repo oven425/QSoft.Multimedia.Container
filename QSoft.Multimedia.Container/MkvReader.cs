@@ -40,16 +40,102 @@ namespace QSoft.Multimedia.Container
                     case 0x1549A966://Segment info
                         break;
                     case 0x4489://Segment Duration
-                        stream.Position += ebml_size;
+                        System.Diagnostics.Trace.WriteLine($"Duration:{ReadDouble(ebml_size)}");
                         break;
                     case 0x2AD7B1://TimestampScale
                         stream.Position += ebml_size;
+                        break;
+                    case 0x00004d80://MuxingApp
+                        System.Diagnostics.Trace.WriteLine($"MuxingApp:{ReadString(ebml_size)}");
+                        break;
+                    case 0x5741://WritingApp
+                        System.Diagnostics.Trace.WriteLine($"WritingApp:{ReadString(ebml_size)}");
+                        break;
+                    case 0x4461://DateUTC
+                        System.Diagnostics.Trace.WriteLine($"DateUTC:{ReadUint(ebml_size)}");
+                        break;
+                    case 0x73A4://SegmentUUID
+                        stream.Position += ebml_size;
+                        break;
+                    case 0x1654AE6B://Tracks
+                        break;
+                    case 0xAE://TrackEntry
+                        break;
+                    case 0xD7://TrackNumber
+                        System.Diagnostics.Trace.WriteLine($"TrackNumber:{ReadUint(ebml_size)}");
+                        break;
+                    case 0x83://TrackType
+                        System.Diagnostics.Trace.WriteLine($"TrackType:{ReadUint(ebml_size)}");
+                        break;
+                    case 0x73C5://TrackUID
+                        System.Diagnostics.Trace.WriteLine($"TrackUID:{ReadUint(ebml_size)}");
+                        break;
+                    case 0x86://CodecID
+                        System.Diagnostics.Trace.WriteLine($"CodecID:{ReadString(ebml_size)}");
+                        break;
+                    case 0x63A2://CodecPrivate
+                        System.Diagnostics.Trace.WriteLine($"CodecPrivate:{BitConverter.ToString(ReadBlob(ebml_size))}");
+                        break;
+                    case 0x9C://FlagLacing
+                        System.Diagnostics.Trace.WriteLine($"FlagLacing:{ReadUint(ebml_size)}");
+                        break;
+                    case 0x6DE7://MinCache
+                        System.Diagnostics.Trace.WriteLine($"MinCache:{ReadUint(ebml_size)}");
+                        break;
+                    case 0x23E383://DefaultDuration
+                        System.Diagnostics.Trace.WriteLine($"DefaultDuration:{ReadUint(ebml_size)}");
+                        break;
+                    case 0x22B59C://Language
+                        System.Diagnostics.Trace.WriteLine($"Language:{ReadString(ebml_size)}");
+                        break;
+                    case 0xE0://Video
+                        break;
+                    case 0xB0://PixelWidth
+                        System.Diagnostics.Trace.WriteLine($"PixelWidth:{ReadUint(ebml_size)}");
+                        break;
+                    case 0xBA://PixelHeight
+                        System.Diagnostics.Trace.WriteLine($"PixelHeight:{ReadUint(ebml_size)}");
+                        break;
+                    case 0x54B0://DisplayWidth
+                        System.Diagnostics.Trace.WriteLine($"DisplayWidth:{ReadUint(ebml_size)}");
+                        break;
+                    case 0xE1://Audio
+                        break;
+                    case 0xB5://SamplingFrequency
+                        System.Diagnostics.Trace.WriteLine($"SamplingFrequency:{ReadDouble(ebml_size)}");
+                        break;
+                    case 0x9F://Channels
+                        System.Diagnostics.Trace.WriteLine($"Channels:{ReadUint(ebml_size)}");
+                        break;
+                    case 0x1254C367://Tags
+                        break;
+                    case 0x7373://Tag
+                        break;
+                    case 0x63C0://Targets
+                        break;
+                    case 0x67C8://SimpleTag
+                        break;
+                    case 0x45A3://TagName
+                        System.Diagnostics.Trace.WriteLine($"TagName:{ReadString(ebml_size)}");
+                        break;
+                    case 0x4487://TagString
+                        System.Diagnostics.Trace.WriteLine($"TagString:{ReadString(ebml_size)}");
+                        break;
+                    case 0x1C53BB6B://Cues
+                        break;
+                    case 0xBB://CuePoint
+                        break;
+                    case 0xB3://CueTime
+                        System.Diagnostics.Trace.WriteLine($"CueTime:{ReadUint(ebml_size)}");
+                        break;
+                    case 0xB7://CueTrackPositions
                         break;
                     case 0xBF://void
                     case 0x000000ec://void
                         stream.Position += ebml_size;
                         break;
                     default:
+                        System.Diagnostics.Trace.WriteLine($"{ebml_id:X}");
                         stream.Position += ebml_size;
                         break;
                 }
@@ -70,6 +156,48 @@ namespace QSoft.Multimedia.Container
         {
             stream.Position += size;
 
+        }
+
+        double ReadDouble(int size)
+        {
+            Span<byte> buffer = stackalloc byte[size];
+            stream.Read(buffer);
+
+            return size switch
+            {
+                4 => BitConverter.Int32BitsToSingle(
+                         BinaryPrimitives.ReadInt32BigEndian(buffer)),
+                8 => BitConverter.Int64BitsToDouble(
+                         BinaryPrimitives.ReadInt64BigEndian(buffer)),
+                _ => throw new NotSupportedException()
+            };
+        }
+
+        byte[] ReadBlob(int size)
+        {
+            var buf = new byte[size];
+            stream.Read(buf, 0, buf.Length);
+            return buf;
+        }
+
+        string ReadString(int size)
+        {
+            Span<byte> buffer = stackalloc byte[size];
+            stream.Read(buffer);
+            return Encoding.UTF8.GetString(buffer);
+        }
+
+        uint ReadUint(int size)
+        {
+            Span<byte> buffer = stackalloc byte[size];
+            stream.Read(buffer);
+
+            uint value = 0;
+            for (int i=0;i<buffer.Length; i++)
+            {
+                value = (value << 8) | buffer[i];
+            }
+            return value;
         }
 
         void EnumableEBML()
