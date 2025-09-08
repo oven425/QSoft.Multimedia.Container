@@ -23,7 +23,15 @@ namespace QSoft.Multimedia.Container
                 switch (ebml_id)
                 {
                     case 0x1a45dfa3:
-                        ReadEBML(ebml_size);
+                        break;
+                    case 0x4282://Uint DocTypes ID
+                        System.Diagnostics.Trace.WriteLine($"Uint DocTypes ID:{ReadString(ebml_size)}");
+                        break;
+                    case 0x4287://Uint DocTypeVersion ID
+                        System.Diagnostics.Trace.WriteLine($"Uint DocTypeVersion ID:{ReadUint(ebml_size)}");
+                        break;
+                    case 0x4285://Uint DocTypeReadVersion ID
+                        System.Diagnostics.Trace.WriteLine($"Uint DocTypeReadVersion ID:{ReadUint(ebml_size)}");
                         break;
                     case 0x18538067://Segment
                         break;
@@ -43,7 +51,7 @@ namespace QSoft.Multimedia.Container
                         System.Diagnostics.Trace.WriteLine($"Duration:{ReadDouble(ebml_size)}");
                         break;
                     case 0x2AD7B1://TimestampScale
-                        stream.Position += ebml_size;
+                        System.Diagnostics.Trace.WriteLine($"TimestampScale:{ReadUint(ebml_size)}");
                         break;
                     case 0x00004d80://MuxingApp
                         System.Diagnostics.Trace.WriteLine($"MuxingApp:{ReadString(ebml_size)}");
@@ -69,6 +77,9 @@ namespace QSoft.Multimedia.Container
                         break;
                     case 0x73C5://TrackUID
                         System.Diagnostics.Trace.WriteLine($"TrackUID:{ReadUint(ebml_size)}");
+                        break;
+                    case 0x88://FlagDefault
+                        System.Diagnostics.Trace.WriteLine($"FlagDefault:{ReadUint(ebml_size)}");
                         break;
                     case 0x86://CodecID
                         System.Diagnostics.Trace.WriteLine($"CodecID:{ReadString(ebml_size)}");
@@ -107,6 +118,18 @@ namespace QSoft.Multimedia.Container
                     case 0x9F://Channels
                         System.Diagnostics.Trace.WriteLine($"Channels:{ReadUint(ebml_size)}");
                         break;
+                    case 0x6D80://ContentEncodings
+                        break;
+                    case 0x6240://ContentEncoding
+                        break;
+                    case 0x5034://ContentCompression
+                        break;
+                    case 0x4254://ContentCompAlgo
+                        System.Diagnostics.Trace.WriteLine($"ContentCompAlgo:{ReadUint(ebml_size)}");
+                        break;
+                    case 0x4255://ContentCompSettings
+                        System.Diagnostics.Trace.WriteLine($"ContentCompSettings:{BitConverter.ToString(ReadBlob(ebml_size))}");
+                        break;
                     case 0x1254C367://Tags
                         break;
                     case 0x7373://Tag
@@ -129,6 +152,38 @@ namespace QSoft.Multimedia.Container
                         System.Diagnostics.Trace.WriteLine($"CueTime:{ReadUint(ebml_size)}");
                         break;
                     case 0xB7://CueTrackPositions
+                        break;
+                    case 0xF7://CueTrack
+                        System.Diagnostics.Trace.WriteLine($"CueTrack:{ReadUint(ebml_size)}");
+                        break;
+                    case 0xF1://CueClusterPosition
+                        System.Diagnostics.Trace.WriteLine($"CueClusterPosition:{ReadUint(ebml_size)}");
+                        break;
+                    case 0x1F43B675://Cluster
+                        break;
+                    case 0xE7://Timestamp
+                        System.Diagnostics.Trace.WriteLine($"Timestamp:{ReadUint(ebml_size)}");
+                        break;
+                    case 0xA0://BlockGroup
+                        break;
+                    case 0xA7://Position
+                        System.Diagnostics.Trace.WriteLine($"Position:{ReadUint(ebml_size)}");
+                        break;
+                    case 0xA3://SimpleBlock
+                        System.Diagnostics.Trace.WriteLine($"SimpleBlock:{ebml_size}");
+                        stream.Position += ebml_size;
+                        break;
+                    case 0xA1://Block
+                        stream.Position += ebml_size;
+                        break;
+                    case 0x9B://BlockDuration
+                        System.Diagnostics.Trace.WriteLine($"BlockDuration:{ReadUint(ebml_size)}");
+                        break;
+                    case 0xAB://PrevSize
+                        System.Diagnostics.Trace.WriteLine($"PrevSize:{ReadUint(ebml_size)}");
+                        break;
+                    case 0xFB://ReferenceBlock
+                        stream.Position += ebml_size;
                         break;
                     case 0xBF://void
                     case 0x000000ec://void
@@ -258,5 +313,21 @@ namespace QSoft.Multimedia.Container
         {
 
         }
+
+        public List<StreaEncoding> Stream { set; get; } = [];
     }
+
+    public enum VideoEncodings
+    {
+        H264
+    }
+
+    public class StreaEncoding
+    {
+        public VideoEncodings VideoEncoding { set; get; }
+        public int Width {  get; set; }
+        public int Height { get; set; }
+    }
+
+    
 }
