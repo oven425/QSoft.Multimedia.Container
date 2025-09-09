@@ -5,6 +5,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Reflection.PortableExecutable;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,8 +15,14 @@ namespace QSoft.Multimedia.Container
 {
     public class MkvReader(Stream stream)
     {
+        //100000
+        //475090
+        //1000000000
+        //47509000000
+        //1000000
         public void Open()
         {
+            var tts = TimeSpan.FromMilliseconds(47509);
             while (stream.Position < stream.Length)
             {
                 var ebml_id = GetEBML_ID();
@@ -23,60 +30,86 @@ namespace QSoft.Multimedia.Container
                 switch (ebml_id)
                 {
                     case 0x1a45dfa3:
+                        m_Header = new EbmlHeader();
                         break;
                     case 0x4282://Uint DocTypes ID
-                        System.Diagnostics.Trace.WriteLine($"Uint DocTypes ID:{ReadString(ebml_size)}");
+                        if(m_Header  != null)
+                            m_Header.DocTypes = ReadString(ebml_size);
                         break;
                     case 0x4287://Uint DocTypeVersion ID
-                        System.Diagnostics.Trace.WriteLine($"Uint DocTypeVersion ID:{ReadUint(ebml_size)}");
+                        if (m_Header != null)
+                            m_Header.DocTypeVersion = ReadUint(ebml_size);
                         break;
                     case 0x4285://Uint DocTypeReadVersion ID
-                        System.Diagnostics.Trace.WriteLine($"Uint DocTypeReadVersion ID:{ReadUint(ebml_size)}");
+                        if (m_Header != null)
+                            m_Header.DocTypeReadVersion = ReadUint(ebml_size);
                         break;
                     case 0x18538067://Segment
+                        this.m_Segment = new Segment();
                         break;
                     case 0x114D9B74://SeekHead
+                        if(this.m_Segment != null)
+                            this.m_Segment.SeekHead = new SeekHead();
                         break;
                     case 0x00004dbb://Seek
+                        if (this.m_Segment?.SeekHead != null)
+                            this.m_Segment.SeekHead.Seeks.Add(new Seek());
                         break;
                     case 0x000053ab://SeekID
-                        stream.Position += ebml_size;
+                        if (this.m_Segment?.SeekHead?.Seeks.Count > 0)
+                            this.m_Segment.SeekHead.Seeks[^1].ID = ReadBlob(ebml_size);
                         break;
                     case 0x000053ac://SeekPosition
-                        stream.Position += ebml_size;
+                        if (this.m_Segment?.SeekHead?.Seeks.Count > 0)
+                            this.m_Segment.SeekHead.Seeks[^1].Position = ReadUint(ebml_size);
                         break;
                     case 0x1549A966://Segment info
+                        if(this.m_Segment!= null)
+                            this.m_Segment.SegmentInfo = new SegmentInfo();
                         break;
                     case 0x4489://Segment Duration
-                        System.Diagnostics.Trace.WriteLine($"Duration:{ReadDouble(ebml_size)}");
+                        if (this.m_Segment?.SegmentInfo != null)
+                            this.m_Segment.SegmentInfo.SegmentDuration = ReadDouble(ebml_size);
                         break;
                     case 0x2AD7B1://TimestampScale
-                        System.Diagnostics.Trace.WriteLine($"TimestampScale:{ReadUint(ebml_size)}");
+                        if (this.m_Segment?.SegmentInfo != null)
+                            this.m_Segment.SegmentInfo.TimestampScale = ReadUint(ebml_size);
                         break;
                     case 0x00004d80://MuxingApp
-                        System.Diagnostics.Trace.WriteLine($"MuxingApp:{ReadString(ebml_size)}");
+                        if (this.m_Segment?.SegmentInfo != null)
+                            this.m_Segment.SegmentInfo.MuxingApp = ReadString(ebml_size);
                         break;
                     case 0x5741://WritingApp
-                        System.Diagnostics.Trace.WriteLine($"WritingApp:{ReadString(ebml_size)}");
+                        if (this.m_Segment?.SegmentInfo != null)
+                            this.m_Segment.SegmentInfo.WritingApp = ReadString(ebml_size);
                         break;
                     case 0x4461://DateUTC
-                        System.Diagnostics.Trace.WriteLine($"DateUTC:{ReadUint(ebml_size)}");
+                        if (this.m_Segment?.SegmentInfo != null)
+                            this.m_Segment.SegmentInfo.DateUTC = ReadUint(ebml_size);
                         break;
                     case 0x73A4://SegmentUUID
-                        stream.Position += ebml_size;
+                        if (this.m_Segment?.SegmentInfo != null)
+                            this.m_Segment.SegmentInfo.SegmentUUID = ReadBlob(ebml_size);
                         break;
                     case 0x1654AE6B://Tracks
+                        if(this.m_Segment != null)
+                            this.m_Segment.Tracks = [];
                         break;
                     case 0xAE://TrackEntry
+                        if (this.m_Segment?.Tracks != null)
+                            this.m_Segment.Tracks.Add(new TrackEntry());
                         break;
                     case 0xD7://TrackNumber
-                        System.Diagnostics.Trace.WriteLine($"TrackNumber:{ReadUint(ebml_size)}");
+                        if (this.m_Segment?.Tracks.Count > 0)
+                            this.m_Segment.Tracks[^1].TrackNumber = ReadUint(ebml_size);
                         break;
                     case 0x83://TrackType
-                        System.Diagnostics.Trace.WriteLine($"TrackType:{ReadUint(ebml_size)}");
+                        if (this.m_Segment?.Tracks.Count > 0)
+                            this.m_Segment.Tracks[^1].TrackType = ReadUint(ebml_size);
                         break;
                     case 0x73C5://TrackUID
-                        System.Diagnostics.Trace.WriteLine($"TrackUID:{ReadUint(ebml_size)}");
+                        if (this.m_Segment?.Tracks.Count > 0)
+                            this.m_Segment.Tracks[^1].TrackUID = ReadUint(ebml_size);
                         break;
                     case 0x88://FlagDefault
                         System.Diagnostics.Trace.WriteLine($"FlagDefault:{ReadUint(ebml_size)}");
@@ -309,25 +342,72 @@ namespace QSoft.Multimedia.Container
             return id;
         }
 
-        public void Close()
+        Segment? m_Segment;
+        EbmlHeader? m_Header;
+
+        public TimeSpan Duration
         {
-
+            get
+            {
+                if(this.m_Segment?.SegmentInfo != null)
+                {
+                    var tt = this.m_Segment.SegmentInfo.SegmentDuration * m_Segment.SegmentInfo.TimestampScale;
+                    double milliseconds = tt / 1_000_000.0;
+                    var ts = TimeSpan.FromMilliseconds(milliseconds);
+                    return ts;
+                }
+                return TimeSpan.Zero;
+            }
         }
-
-        public List<StreaEncoding> Stream { set; get; } = [];
     }
 
-    public enum VideoEncodings
+    public class TrackEntry
     {
-        H264
+        public uint TrackNumber { set; get; }
+        public uint TrackType { set; get; }
+        public uint TrackUID { set; get; }
     }
 
-    public class StreaEncoding
+
+    public class Seek
     {
-        public VideoEncodings VideoEncoding { set; get; }
-        public int Width {  get; set; }
-        public int Height { get; set; }
+        public byte[] ID { set; get; }
+        public uint Position { set; get; }
     }
+
+
+    
+
+    public class SegmentInfo
+    {
+        public double SegmentDuration { set; get; }
+        public uint TimestampScale { set; get; }
+        public string WritingApp { set; get; } = string.Empty;
+        public string MuxingApp { set; get; } = string.Empty;
+        public uint DateUTC { set; get; }
+
+        public byte[] SegmentUUID { set; get; }
+    }
+
+    public class SeekHead
+    {
+        public List<Seek> Seeks { set; get; } = [];
+    }
+    public class Segment
+    {
+        public SegmentInfo? SegmentInfo { set; get; }
+        public SeekHead? SeekHead { set; get; }
+        public List<TrackEntry> Tracks {  set; get; }
+
+
+    }
+    public class EbmlHeader
+    {
+        public string DocTypes { set; get; }
+        public uint DocTypeVersion { set; get; }
+        public uint DocTypeReadVersion { set; get; }
+    }
+
 
     
 }
