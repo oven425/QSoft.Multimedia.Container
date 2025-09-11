@@ -15,14 +15,8 @@ namespace QSoft.Multimedia.Container
 {
     public class MkvReader(Stream stream)
     {
-        //100000
-        //475090
-        //1000000000
-        //47509000000
-        //1000000
         public void Open()
         {
-            var tts = TimeSpan.FromMilliseconds(47509);
             while (stream.Position < stream.Length)
             {
                 var ebml_id = GetEBML_ID();
@@ -166,108 +160,91 @@ namespace QSoft.Multimedia.Container
                         System.Diagnostics.Trace.WriteLine($"ContentCompSettings:{BitConverter.ToString(ReadBlob(ebml_size))}");
                         break;
                     case 0x1254C367://Tags
+                        if(this.m_Segment != null)
+                            this.m_Segment.Tags = [];
                         break;
                     case 0x7373://Tag
-                        this.Tags.Add(new Tag());
+                        this.m_Segment?.Tags.Add(new Tag());
                         break;
                     case 0x63C0://Targets
                         break;
                     case 0x67C8://SimpleTag
-                        if(this.Tags.Count >0)
-                            this.Tags[^1].SimpleTag = new SimpleTag();
+                        if (this.m_Segment?.Tags?.Count > 0)
+                            this.m_Segment.Tags[^1].SimpleTag.Add(new SimpleTag());
                         break;
                     case 0x45A3://TagName
-                        if (this.Tags.Count > 0 && this.Tags[^1].SimpleTag != null)
-                            this.Tags[^1].SimpleTag.TagName = ReadString(ebml_size);
+                        if (this.m_Segment?.Tags.Count > 0&& this.m_Segment?.Tags[^1].SimpleTag.Count>0)
+                            this.m_Segment.Tags[^1].SimpleTag[^1].TagName = ReadString(ebml_size);
                         break;
                     case 0x4487://TagString
-                        if (this.Tags.Count > 0 && this.Tags[^1].SimpleTag != null)
-                            this.Tags[^1].SimpleTag.TagString = ReadString(ebml_size);
+                        if (this.m_Segment?.Tags.Count > 0 && this.m_Segment?.Tags[^1].SimpleTag.Count > 0)
+                            this.m_Segment.Tags[^1].SimpleTag[^1].TagString = ReadString(ebml_size);
                         break;
                     case 0x1C53BB6B://Cues
+                        if(this.m_Segment != null)
+                            this.m_Segment.Cues = [];
                         break;
                     case 0xBB://CuePoint
-                        Cues.Add(new CuePoint());
+                        this.m_Segment?.Cues.Add(new CuePoint());
                         break;
                     case 0xB3://CueTime
-                        if (Cues.Count > 0)
-                            Cues[^1].CueTime = ReadUint(ebml_size);
+                        if (this.m_Segment?.Cues.Count > 0)
+                            this.m_Segment.Cues[^1].CueTime = ReadUint(ebml_size);
                         break;
                     case 0xB7://CueTrackPositions
-                        if (Cues.Count > 0)
-                            Cues[^1].CueTrackPositions.Add(new CueTrackPosition());
+                        if (this.m_Segment?.Cues.Count > 0)
+                            this.m_Segment.Cues[^1].CueTrackPositions.Add(new CueTrackPosition());
                         break;
                     case 0xF7://CueTrack
-                        if (Cues.Count > 0 && Cues[^1].CueTrackPositions.Count > 0)
-                            Cues[^1].CueTrackPositions[^1].CueTrack = ReadUint(ebml_size);
+                        if (this.m_Segment?.Cues.Count > 0 && this.m_Segment?.Cues[^1].CueTrackPositions.Count > 0)
+                            this.m_Segment.Cues[^1].CueTrackPositions[^1].CueTrack = ReadUint(ebml_size);
                         break;
                     case 0xF1://CueClusterPosition
-                        if (Cues.Count > 0 && Cues[^1].CueTrackPositions.Count > 0)
-                            Cues[^1].CueTrackPositions[^1].CueClusterPosition = ReadUint(ebml_size);
+                        if (this.m_Segment?.Cues.Count > 0 && this.m_Segment?.Cues[^1].CueTrackPositions.Count > 0)
+                            this.m_Segment.Cues[^1].CueTrackPositions[^1].CueClusterPosition = ReadUint(ebml_size);
                         break;
                     case 0x1F43B675://Cluster
-                        System.Diagnostics.Trace.WriteLine("Cluster");
-                        Clusters.Add(new Cluster());
+                        if(this.m_Segment!=null)
+                            this.m_Segment.Clusters.Add(new Cluster());
                         break;
                     case 0xE7://Timestamp
-                        if(Clusters.Count >0)
-                            Clusters[^1].Timestamp = ReadUint(ebml_size);
-                        //System.Diagnostics.Trace.WriteLine($"Timestamp:{ReadUint(ebml_size)}");
+                        if(this.m_Segment?.Clusters.Count >0)
+                            this.m_Segment.Clusters[^1].Timestamp = ReadUint(ebml_size);
                         break;
                     case 0xA0://BlockGroup
+                        System.Diagnostics.Trace.WriteLine($"BlockGroup:{ebml_size}");
                         break;
                     case 0xA7://Position
-                        if (Clusters.Count > 0)
-                            Clusters[^1].Timestamp = ReadUint(ebml_size);
-                        //System.Diagnostics.Trace.WriteLine($"Position:{ReadUint(ebml_size)}");
+                        if (this.m_Segment?.Clusters.Count > 0)
+                            this.m_Segment.Clusters[^1].Position = ReadUint(ebml_size);
                         break;
                     case 0xA3://SimpleBlock
-                        System.Diagnostics.Trace.WriteLine($"SimpleBlock:{ebml_size}");
-
-
-                        var tracknum = GetEBML_Size();
+                        var sb = new SimpleBlock();
+                        sb.TrackNum = GetEBML_Size();
                         byte[] timecode = new byte[2];
                         stream.Read(timecode, 0, timecode.Length);
-                        System.Diagnostics.Trace.WriteLine($"tracknum:{tracknum}");
-                        var flag = stream.ReadByte();
+                        sb.TimeCode = BitConverter.ToUInt16(timecode, 0);
+                        sb.Flag = (byte)stream.ReadByte();
+                        if (this.m_Segment?.Clusters.Count > 0)
+                            this.m_Segment.Clusters[^1].SimpleBlocks.Add(new SimpleBlock());
 
-
-                        //if (tracknum == 1)
-                        //{
-                        //    //stream.Position = stream.Position - 4;
-                        //    while(true)
-                        //    {
-                        //        var sz = this.ReadBlob(4);
-                        //        Array.Reverse(sz);
-                        //        var szz = BitConverter.ToInt32(sz, 0);
-                        //        stream.Position = stream.Position + szz;
-                        //    }
-
-
-                        //    var bbu = this.ReadBlob(ebml_size);
-                        //    foreach (var oo in bbu)
-                        //    {
-                        //        System.Diagnostics.Trace.Write($"{oo:X}-");
-                        //    }
-                        //}
-                        //else
-                        //{
                         byte[] framed = new byte[ebml_size - 4];
                         stream.Read(framed, 0, framed.Length);
-                        //}
 
                         break;
                     case 0xA1://Block
+                        System.Diagnostics.Trace.WriteLine($"Block:{ebml_size}");
                         stream.Position += ebml_size;
                         break;
                     case 0x9B://BlockDuration
                         System.Diagnostics.Trace.WriteLine($"BlockDuration:{ReadUint(ebml_size)}");
                         break;
                     case 0xAB://PrevSize
-                        System.Diagnostics.Trace.WriteLine($"PrevSize:{ReadUint(ebml_size)}");
+                        if (this.m_Segment?.Clusters.Count > 0)
+                            this.m_Segment.Clusters[^1].PrevSize = ReadUint(ebml_size);
                         break;
                     case 0xFB://ReferenceBlock
-                        stream.Position += ebml_size;
+                        System.Diagnostics.Trace.WriteLine($"ReferenceBlock:{ReadUint(ebml_size)}");
                         break;
                     case 0xBF://void
                     case 0x000000ec://void
@@ -328,10 +305,6 @@ namespace QSoft.Multimedia.Container
 
         uint ReadUint(int size)
         {
-            if(size == 1)
-            {
-                System.Diagnostics.Trace.WriteLine("");
-            }
             Span<byte> buffer = stackalloc byte[size];
             stream.Read(buffer);
 
@@ -414,9 +387,26 @@ namespace QSoft.Multimedia.Container
                 return TimeSpan.Zero;
             }
         }
-        public List<Tag> Tags { set; get; } = [];
-        public List<CuePoint> Cues { set; get; } = [];
-        public List<Cluster> Clusters { set; get; } = [];
+        
+        
+        
+    }
+
+    public class SimpleBlock
+    {
+        public int TrackNum { set; get; }
+        public ushort TimeCode { set; get; }
+        public byte Flag { set; get; }
+        public bool IsKeyFrame => (this.Flag & 0x80) >> 7 == 0x01;
+        public bool CanDrop => (this.Flag & 0x01) == 0x01;
+        public byte Lacing=> (byte)((this.Flag & 0x06) >> 1);
+        public bool IsDispaly => (this.Flag & 0x07) >> 3 == 0x01;
+
+        //var key = (flag & 0x80) >> 7 == 0x01;
+        //var display = (flag & 0x07) >> 3;
+        ////Lacing 類型：00 無、01 Xiph、10 固定大小、11 EBML
+        //var lancing = (flag & 0x06) >> 1;
+        //var drop = (flag & 0x01) == 0x01;
     }
 
     public class Cluster
@@ -424,6 +414,8 @@ namespace QSoft.Multimedia.Container
         public uint Timestamp { set; get; }
         public uint Position { set; get; }
         public uint PrevSize { set; get; }
+
+        public List<SimpleBlock> SimpleBlocks { set; get; } = [];
     }
 
     public class CueTrackPosition
@@ -448,7 +440,7 @@ namespace QSoft.Multimedia.Container
 
     public class Tag
     {
-        public SimpleTag? SimpleTag { set; get; }
+        public List<SimpleTag> SimpleTag { set; get; } = [];
     }
 
     public class TrackEntry
@@ -463,7 +455,7 @@ namespace QSoft.Multimedia.Container
 
     public class Seek
     {
-        public byte[] ID { set; get; }
+        public byte[]? ID { set; get; }
         public uint Position { set; get; }
     }
 
@@ -489,13 +481,15 @@ namespace QSoft.Multimedia.Container
     {
         public SegmentInfo? SegmentInfo { set; get; }
         public SeekHead? SeekHead { set; get; }
-        public List<TrackEntry> Tracks {  set; get; }
+        public List<TrackEntry> Tracks { set; get; } = [];
 
-
+        public List<Tag> Tags { set; get; } = [];
+        public List<CuePoint> Cues { set; get; } = [];
+        public List<Cluster> Clusters { set; get; } = [];
     }
     public class EbmlHeader
     {
-        public string DocTypes { set; get; }
+        public string DocTypes { set; get; } = string.Empty;
         public uint DocTypeVersion { set; get; }
         public uint DocTypeReadVersion { set; get; }
     }
