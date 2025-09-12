@@ -15,6 +15,7 @@ namespace QSoft.Multimedia.Container
 {
     public class MkvReader(Stream stream)
     {
+        int m_SegmentOffset = 0;
         public void Open()
         {
             while (stream.Position < stream.Length)
@@ -39,6 +40,7 @@ namespace QSoft.Multimedia.Container
                             m_Header.DocTypeReadVersion = ReadUint(ebml_size);
                         break;
                     case 0x18538067://Segment
+                        m_SegmentOffset = (int)stream.Position;
                         this.m_Segment = new Segment();
                         break;
                     case 0x114D9B74://SeekHead
@@ -129,12 +131,16 @@ namespace QSoft.Multimedia.Container
                         System.Diagnostics.Trace.WriteLine($"Language:{ReadString(ebml_size)}");
                         break;
                     case 0xE0://Video
+                        if (this.m_Segment?.Tracks.Count > 0)
+                            this.m_Segment.Tracks[^1].Video = new();
                         break;
                     case 0xB0://PixelWidth
-                        System.Diagnostics.Trace.WriteLine($"PixelWidth:{ReadUint(ebml_size)}");
+                        if (this.m_Segment?.Tracks.Count > 0 && this.m_Segment.Tracks[^1].Video != null)
+                            this.m_Segment.Tracks[^1].Video.PixelWidth = ReadUint(ebml_size);
                         break;
                     case 0xBA://PixelHeight
-                        System.Diagnostics.Trace.WriteLine($"PixelHeight:{ReadUint(ebml_size)}");
+                        if (this.m_Segment?.Tracks.Count > 0 && this.m_Segment.Tracks[^1].Video != null)
+                            this.m_Segment.Tracks[^1].Video.PixelHeight = ReadUint(ebml_size);
                         break;
                     case 0x54B0://DisplayWidth
                         System.Diagnostics.Trace.WriteLine($"DisplayWidth:{ReadUint(ebml_size)}");
@@ -223,10 +229,11 @@ namespace QSoft.Multimedia.Container
                         sb.TrackNum = GetEBML_Size();
                         byte[] timecode = new byte[2];
                         stream.Read(timecode, 0, timecode.Length);
+                        Array.Reverse(timecode);
                         sb.TimeCode = BitConverter.ToUInt16(timecode, 0);
                         sb.Flag = (byte)stream.ReadByte();
                         if (this.m_Segment?.Clusters.Count > 0)
-                            this.m_Segment.Clusters[^1].SimpleBlocks.Add(new SimpleBlock());
+                            this.m_Segment.Clusters[^1].SimpleBlocks.Add(sb);
 
                         byte[] framed = new byte[ebml_size - 4];
                         stream.Read(framed, 0, framed.Length);
@@ -256,23 +263,32 @@ namespace QSoft.Multimedia.Container
                         break;
                 }
             }
+            this.BuildSeekTable();
         }
 
-        void ReadSeekHeader(int size)
+        void BuildSeekTable()
         {
+            //if (this.m_Segment == null) return;
+            //foreach(var oo in  this.m_Segment.Clusters)
+            //{
+            //    var tss = oo.SimpleBlocks.Where(x => x.TrackNum == 1).Sum(x=>x.TimeCode);
+            //    foreach(var sb in oo.SimpleBlocks.Where(x=>x.TrackNum==1))
+            //    {
+            //        System.Diagnostics.Trace.WriteLine($"TimeCode:{sb.TimeCode} IsKeyFrame:{sb.IsKeyFrame}");
 
+            //    }
+            //}
+
+            if (this.m_Segment is null) return;
+            foreach(var cue in this.m_Segment.Cues)
+            {
+                foreach(var pos in  cue.CueTrackPositions)
+                {
+                    //pos.CueClusterPosition + this.m_SegmentOffset;
+                }
+            }
         }
 
-        void ReadSegment(int size)
-        {
-
-        }
-
-        void ReadEBML(int size)
-        {
-            stream.Position += size;
-
-        }
 
         double ReadDouble(int size)
         {
@@ -402,11 +418,6 @@ namespace QSoft.Multimedia.Container
         public byte Lacing=> (byte)((this.Flag & 0x06) >> 1);
         public bool IsDispaly => (this.Flag & 0x07) >> 3 == 0x01;
 
-        //var key = (flag & 0x80) >> 7 == 0x01;
-        //var display = (flag & 0x07) >> 3;
-        ////Lacing 類型：00 無、01 Xiph、10 固定大小、11 EBML
-        //var lancing = (flag & 0x06) >> 1;
-        //var drop = (flag & 0x01) == 0x01;
     }
 
     public class Cluster
@@ -443,6 +454,12 @@ namespace QSoft.Multimedia.Container
         public List<SimpleTag> SimpleTag { set; get; } = [];
     }
 
+    public class TrackEntryVideo
+    {
+        public uint PixelWidth { set; get; }
+        public uint PixelHeight { set; get; }
+    }
+
     public class TrackEntry
     {
         public uint TrackNumber { set; get; }
@@ -450,6 +467,9 @@ namespace QSoft.Multimedia.Container
         public uint TrackUID { set; get; }
         public string CodecID { set; get; } = string.Empty;
         public byte[] CodecPrivate { set; get; } = [];
+        public TrackEntryVideo? Video { set; get; }
+
+        
     }
 
 
