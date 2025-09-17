@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -13,23 +14,60 @@ namespace QSoft.Multimedia.Container
         {
             WritetEBML_ID(0x1a45dfa3);
             WriteEBML_Size(25);
+            WritetEBML_ID(0x4282);
+            WriteEBML_String("matroska");
+            WritetEBML_ID(0x4287);
+            WriteEBML_Uint(2);
+            WritetEBML_ID(0x4285);
+            WriteEBML_Uint(2);
+        }
+
+
+        void WriteEBML_Uint(int data)
+        {
+
+        }
+
+        void WriteEBML_String(string data)
+        {
+            WriteEBML_Size(data.Length);
+            var buf = Encoding.UTF8.GetBytes(data);
+            stream.Write(buf);
+
+            //Span<byte> buffer = stackalloc byte[size];
+            //stream.Read(buffer);
+            //return Encoding.UTF8.GetString(buffer);
         }
 
         void WritetEBML_ID(int data)
         {
-            var bbs = BitConverter.GetBytes(data);
-            Array.Reverse(bbs);
-            var bb = bbs[0];
-            int id_len = bb switch
+            var count = data switch
             {
-                >= 0x80 => 1, // 1xxx xxxx
-                >= 0x40 => 2, // 01xx xxxx
-                >= 0x20 => 3, // 001x xxxx
-                >= 0x10 => 4, // 0001 xxxx
-                _ => throw new InvalidDataException("Invalid EBML ID")
+                >=0x00FFFFFF => 4,
+                >=0x0000FFFF =>3,
+                >=0x000000FF=>2,
+                >=0x00000000=>1,
+                _=> throw new InvalidDataException("Invalid EBML ID")
             };
-            var buf = new Span<byte>(bbs)[..id_len];
+            var s1 = MemoryMarshal.CreateSpan(ref data, 1);
+            var s2 = MemoryMarshal.AsBytes(s1);
+            var buf = s2[..count];
+            buf.Reverse();
             stream.Write(buf);
+
+            //var bbs = BitConverter.GetBytes(data);
+            //Array.Reverse(bbs);
+            //var bb = bbs[0];
+            //int id_len = bb switch
+            //{
+            //    >= 0x80 => 1, // 1xxx xxxx
+            //    >= 0x40 => 2, // 01xx xxxx
+            //    >= 0x20 => 3, // 001x xxxx
+            //    >= 0x10 => 4, // 0001 xxxx
+            //    _ => throw new InvalidDataException("Invalid EBML ID")
+            //};
+            //var buf = new Span<byte>(bbs)[..id_len];
+            //stream.Write(buf);
 
         }
 
