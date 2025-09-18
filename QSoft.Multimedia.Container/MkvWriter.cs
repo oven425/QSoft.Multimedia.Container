@@ -13,24 +13,40 @@ namespace QSoft.Multimedia.Container
         public void Open()
         {
             WritetEBML_ID(0x1a45dfa3);
-            WriteEBML_Size(25);
+            WriteEBML_VINT(25);
             WritetEBML_ID(0x4282);
             WriteEBML_String("matroska");
             WritetEBML_ID(0x4287);
             WriteEBML_Uint(2);
             WritetEBML_ID(0x4285);
             WriteEBML_Uint(2);
+
+
+
         }
 
 
         void WriteEBML_Uint(int data)
         {
-
+            var count = data switch
+            {
+                <= 0xFF => (1),
+                <= 0xFFFF => (2),
+                <= 0xFFFFFF => (3),
+                <= 268435455 => (4),
+                _ => (0)
+            };
+            WriteEBML_VINT(count);
+            var s1 = MemoryMarshal.CreateSpan(ref data, 1);
+            var s2 = MemoryMarshal.AsBytes(s1);
+            var buf = s2[..count];
+            buf.Reverse();
+            stream.Write(buf);
         }
 
         void WriteEBML_String(string data)
         {
-            WriteEBML_Size(data.Length);
+            WriteEBML_VINT(data.Length);
             var buf = Encoding.UTF8.GetBytes(data);
             stream.Write(buf);
 
@@ -71,22 +87,27 @@ namespace QSoft.Multimedia.Container
 
         }
 
-        void WriteEBML_Size(int data)
+        void WriteEBML_VINT(int data)
         {
-            var bitc = data switch
+            var (bitmask, count) = data switch
             {
-                <= 127 => 0x80,
-                <= 16383 => 0x40,
-                <= 2097151 => 0x20,
-                <= 268435455 => 0x10,
-                _ => 0
+                <= 127 => (0x80, 1),
+                <= 16383 => (0x40,2),
+                <= 2097151 => (0x20,3),
+                <= 268435455 => (0x10,4),
+                _ => (0,0)
             };
+            var aaa = bitmask | data;
+            var s1 = MemoryMarshal.CreateSpan(ref aaa, 1);
+            var s2 = MemoryMarshal.AsBytes(s1);
+            var buf = s2[..count];
+            buf.Reverse();
+            stream.Write(buf);
 
-
-            var aaa = bitc | data;
-            var bbs = BitConverter.GetBytes(aaa);
-            Array.Reverse(bbs);
-            stream.Write(bbs,0, bbs.Length);
+            //var aaa = bitc | data;
+            //var bbs = BitConverter.GetBytes(aaa);
+            //Array.Reverse(bbs);
+            //stream.Write(bbs,0, bbs.Length);
 
         }
 

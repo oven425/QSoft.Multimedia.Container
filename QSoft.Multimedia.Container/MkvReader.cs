@@ -514,6 +514,13 @@ namespace QSoft.Multimedia.Container
         public uint DocTypeReadVersion { set; get; }
     }
 
+    public class MediaIndex
+    {
+        public TimeSpan Time { set; get; }
+        public TimeSpan Duration { set; get; }
 
+        public long Posisiotn { set; get; }
+
+    }
     
 }
