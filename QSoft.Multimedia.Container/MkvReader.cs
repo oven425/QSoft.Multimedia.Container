@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Buffers.Binary;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Drawing;
@@ -13,7 +14,7 @@ using System.Threading.Tasks;
 //https://blog.csdn.net/xuweilmy/article/details/8985002
 namespace QSoft.Multimedia.Container
 {
-    public class MkvReader(Stream stream)
+    public class MkvReader(Stream stream) : IEnumerable<FrameIndex>
     {
         int m_SegmentOffset = 0;
         public void Open()
@@ -280,13 +281,48 @@ namespace QSoft.Multimedia.Container
             //}
 
             if (this.m_Segment is null) return;
-            foreach(var cue in this.m_Segment.Cues)
+            //foreach(var cue in this.m_Segment.Cues)
+            //{
+            //    foreach(var pos in  cue.CueTrackPositions)
+            //    {
+            //        var pp = pos.CueClusterPosition + this.m_SegmentOffset;
+            //        var ff = new FrameIndex();
+                    
+            //    }
+            //}
+        }
+
+        void DD()
+        {
+            foreach(var oo in this.m_Segment.Clusters)
             {
-                foreach(var pos in  cue.CueTrackPositions)
+                foreach(var ooo in oo.SimpleBlocks)
                 {
-                    //pos.CueClusterPosition + this.m_SegmentOffset;
+
                 }
             }
+        }
+
+        public IEnumerator<FrameIndex> GetEnumerator()
+        {
+            if(this.m_Segment is null) yield break;
+            foreach (var oo in this.m_Segment.Clusters)
+            {
+                foreach (var ooo in oo.SimpleBlocks)
+                {
+                    var index= new FrameIndex();
+                    index.Posisiotn = oo.Position;
+                    
+                    yield return index;
+                }
+            }
+        }
+
+
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
         }
 
 
@@ -385,6 +421,8 @@ namespace QSoft.Multimedia.Container
 
             return id;
         }
+
+
 
         Segment? m_Segment;
         EbmlHeader? m_Header;
@@ -514,7 +552,7 @@ namespace QSoft.Multimedia.Container
         public uint DocTypeReadVersion { set; get; }
     }
 
-    public class MediaIndex
+    public class FrameIndex
     {
         public TimeSpan Time { set; get; }
         public TimeSpan Duration { set; get; }
