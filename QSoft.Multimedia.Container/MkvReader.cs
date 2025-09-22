@@ -40,6 +40,22 @@ namespace QSoft.Multimedia.Container
                         if (m_Header != null)
                             m_Header.DocTypeReadVersion = ReadUint(ebml_size);
                         break;
+                    case 0x4286://EBMLVersion
+                        if (m_Header != null)
+                            m_Header.EBMLVersion = ReadUint(ebml_size);
+                        break;
+                    case 0x42F7://EBMLReadVersion
+                        if (m_Header != null)
+                            m_Header.EBMLReadVersion = ReadUint(ebml_size);
+                        break;
+                    case 0x42F2://EBMLMaxIDLength
+                        if (m_Header != null)
+                            m_Header.EBMLMaxIDLength = ReadUint(ebml_size);
+                        break;
+                    case 0x42F3://EBMLMAXSizeLength
+                        if (m_Header != null)
+                            m_Header.EBMLMAXSizeLength = ReadUint(ebml_size);
+                        break;
                     case 0x18538067://Segment
                         m_SegmentOffset = (int)stream.Position;
                         this.m_Segment = new Segment();
@@ -79,6 +95,10 @@ namespace QSoft.Multimedia.Container
                     case 0x5741://WritingApp
                         if (this.m_Segment?.SegmentInfo != null)
                             this.m_Segment.SegmentInfo.WritingApp = ReadString(ebml_size);
+                        break;
+                    case 0x7BA9://Title
+                        if (this.m_Segment?.SegmentInfo != null)
+                            this.m_Segment.SegmentInfo.Title = ReadString(ebml_size);
                         break;
                     case 0x4461://DateUTC
                         if (this.m_Segment?.SegmentInfo != null)
@@ -144,7 +164,12 @@ namespace QSoft.Multimedia.Container
                             this.m_Segment.Tracks[^1].Video.PixelHeight = ReadUint(ebml_size);
                         break;
                     case 0x54B0://DisplayWidth
-                        System.Diagnostics.Trace.WriteLine($"DisplayWidth:{ReadUint(ebml_size)}");
+                        if (this.m_Segment?.Tracks.Count > 0 && this.m_Segment.Tracks[^1].Video != null)
+                            this.m_Segment.Tracks[^1].Video.DisplayWidth = ReadUint(ebml_size);
+                        break;
+                    case 0x54BA://DisplayHeight
+                        if (this.m_Segment?.Tracks.Count > 0 && this.m_Segment.Tracks[^1].Video != null)
+                            this.m_Segment.Tracks[^1].Video.DisplayHeight = ReadUint(ebml_size);
                         break;
                     case 0xE1://Audio
                         break;
@@ -187,6 +212,10 @@ namespace QSoft.Multimedia.Container
                         if (this.m_Segment?.Tags.Count > 0 && this.m_Segment?.Tags[^1].SimpleTag.Count > 0)
                             this.m_Segment.Tags[^1].SimpleTag[^1].TagString = ReadString(ebml_size);
                         break;
+                    //case 0x63C5://TagTrackUID
+                    //    if (this.m_Segment?.Tags.Count > 0 && this.m_Segment?.Tags[^1].SimpleTag.Count > 0)
+                    //        this.m_Segment.Tags[^1].SimpleTag[^1].TagTrackUID = ReadUint(ebml_size);
+                    //    break;
                     case 0x1C53BB6B://Cues
                         if(this.m_Segment != null)
                             this.m_Segment.Cues = [];
@@ -209,6 +238,10 @@ namespace QSoft.Multimedia.Container
                     case 0xF1://CueClusterPosition
                         if (this.m_Segment?.Cues.Count > 0 && this.m_Segment?.Cues[^1].CueTrackPositions.Count > 0)
                             this.m_Segment.Cues[^1].CueTrackPositions[^1].CueClusterPosition = ReadUint(ebml_size);
+                        break;
+                    case 0xF0://CueRelativePosition
+                        if (this.m_Segment?.Cues.Count > 0 && this.m_Segment?.Cues[^1].CueTrackPositions.Count > 0)
+                            this.m_Segment.Cues[^1].CueTrackPositions[^1].CueRelativePosition = ReadUint(ebml_size);
                         break;
                     case 0x1F43B675://Cluster
                         if(this.m_Segment!=null)
@@ -264,43 +297,6 @@ namespace QSoft.Multimedia.Container
                         break;
                 }
             }
-            this.BuildSeekTable();
-        }
-
-        void BuildSeekTable()
-        {
-            //if (this.m_Segment == null) return;
-            //foreach(var oo in  this.m_Segment.Clusters)
-            //{
-            //    var tss = oo.SimpleBlocks.Where(x => x.TrackNum == 1).Sum(x=>x.TimeCode);
-            //    foreach(var sb in oo.SimpleBlocks.Where(x=>x.TrackNum==1))
-            //    {
-            //        System.Diagnostics.Trace.WriteLine($"TimeCode:{sb.TimeCode} IsKeyFrame:{sb.IsKeyFrame}");
-
-            //    }
-            //}
-
-            if (this.m_Segment is null) return;
-            //foreach(var cue in this.m_Segment.Cues)
-            //{
-            //    foreach(var pos in  cue.CueTrackPositions)
-            //    {
-            //        var pp = pos.CueClusterPosition + this.m_SegmentOffset;
-            //        var ff = new FrameIndex();
-                    
-            //    }
-            //}
-        }
-
-        void DD()
-        {
-            foreach(var oo in this.m_Segment.Clusters)
-            {
-                foreach(var ooo in oo.SimpleBlocks)
-                {
-
-                }
-            }
         }
 
         public IEnumerator<FrameIndex> GetEnumerator()
@@ -312,7 +308,8 @@ namespace QSoft.Multimedia.Container
                 {
                     var index= new FrameIndex();
                     index.Posisiotn = oo.Position;
-                    
+                    index.Time = TimeSpan.FromSeconds(oo.Timestamp+ooo.TimeCode);
+                    index.TrackNum = ooo.TrackNum;
                     yield return index;
                 }
             }
@@ -471,6 +468,7 @@ namespace QSoft.Multimedia.Container
     {
         public uint CueTrack { set; get; }
         public uint CueClusterPosition { set; get; }
+        public uint CueRelativePosition { set; get; }
     }
 
     public class CuePoint
@@ -485,6 +483,7 @@ namespace QSoft.Multimedia.Container
     {
         public string TagName { get; set; } = string.Empty;
         public string TagString { get; set; } = string.Empty;
+        public uint TagTrackUID { set; get; }
     }
 
     public class Tag
@@ -496,6 +495,8 @@ namespace QSoft.Multimedia.Container
     {
         public uint PixelWidth { set; get; }
         public uint PixelHeight { set; get; }
+        public uint DisplayWidth { set; get; }
+        public uint DisplayHeight { set; get; }
     }
 
     public class TrackEntry
@@ -527,7 +528,7 @@ namespace QSoft.Multimedia.Container
         public string WritingApp { set; get; } = string.Empty;
         public string MuxingApp { set; get; } = string.Empty;
         public uint DateUTC { set; get; }
-
+        public string Title { set; get; }
         public byte[] SegmentUUID { set; get; }
     }
 
@@ -550,10 +551,15 @@ namespace QSoft.Multimedia.Container
         public string DocTypes { set; get; } = string.Empty;
         public uint DocTypeVersion { set; get; }
         public uint DocTypeReadVersion { set; get; }
+        public uint EBMLVersion { set; get; }
+        public uint EBMLReadVersion { set; get; }
+        public uint EBMLMaxIDLength { set; get; }
+        public uint EBMLMAXSizeLength { set; get; }
     }
 
     public class FrameIndex
     {
+        public int TrackNum { set; get; }
         public TimeSpan Time { set; get; }
         public TimeSpan Duration { set; get; }
 
