@@ -139,6 +139,10 @@ namespace QSoft.Multimedia.Container
                         if (this.m_Segment?.Tracks.Count > 0)
                             this.m_Segment.Tracks[^1].CodecPrivate = ReadBlob(ebml_size);
                         break;
+                    case 0x22B59D:
+                        if (this.m_Segment?.Tracks.Count > 0)
+                            this.m_Segment.Tracks[^1].LanguageBCP47 = ReadString(ebml_size);
+                        break;
                     case 0x9C://FlagLacing
                         System.Diagnostics.Trace.WriteLine($"FlagLacing:{ReadUint(ebml_size)}");
                         break;
@@ -156,20 +160,24 @@ namespace QSoft.Multimedia.Container
                             this.m_Segment.Tracks[^1].Video = new();
                         break;
                     case 0xB0://PixelWidth
-                        if (this.m_Segment?.Tracks.Count > 0 && this.m_Segment.Tracks[^1].Video != null)
-                            this.m_Segment.Tracks[^1].Video.PixelWidth = ReadUint(ebml_size);
+                        if (this.m_Segment?.Tracks.Count > 0)
+                            if(this.m_Segment.Tracks[^1].Video is TrackEntryVideo vd)
+                                vd.PixelWidth = ReadUint(ebml_size);
                         break;
                     case 0xBA://PixelHeight
-                        if (this.m_Segment?.Tracks.Count > 0 && this.m_Segment.Tracks[^1].Video != null)
-                            this.m_Segment.Tracks[^1].Video.PixelHeight = ReadUint(ebml_size);
+                        if (this.m_Segment?.Tracks.Count > 0)
+                            if (this.m_Segment.Tracks[^1].Video is TrackEntryVideo vd)
+                                vd.PixelHeight = ReadUint(ebml_size);
                         break;
                     case 0x54B0://DisplayWidth
-                        if (this.m_Segment?.Tracks.Count > 0 && this.m_Segment.Tracks[^1].Video != null)
-                            this.m_Segment.Tracks[^1].Video.DisplayWidth = ReadUint(ebml_size);
+                        if (this.m_Segment?.Tracks.Count > 0)
+                            if (this.m_Segment.Tracks[^1].Video is TrackEntryVideo vd)
+                                vd.DisplayWidth = ReadUint(ebml_size);
                         break;
                     case 0x54BA://DisplayHeight
-                        if (this.m_Segment?.Tracks.Count > 0 && this.m_Segment.Tracks[^1].Video != null)
-                            this.m_Segment.Tracks[^1].Video.DisplayHeight = ReadUint(ebml_size);
+                        if (this.m_Segment?.Tracks.Count > 0)
+                            if (this.m_Segment.Tracks[^1].Video is TrackEntryVideo vd)
+                                vd.DisplayHeight = ReadUint(ebml_size);
                         break;
                     case 0xE1://Audio
                         break;
@@ -199,23 +207,28 @@ namespace QSoft.Multimedia.Container
                         this.m_Segment?.Tags.Add(new Tag());
                         break;
                     case 0x63C0://Targets
+                        if (this.m_Segment?.Tags?.Count > 0)
+                            this.m_Segment.Tags[^1].SimpleTag.Add(new TargetTag());
                         break;
                     case 0x67C8://SimpleTag
                         if (this.m_Segment?.Tags?.Count > 0)
                             this.m_Segment.Tags[^1].SimpleTag.Add(new SimpleTag());
                         break;
                     case 0x45A3://TagName
-                        if (this.m_Segment?.Tags.Count > 0&& this.m_Segment?.Tags[^1].SimpleTag.Count>0)
-                            this.m_Segment.Tags[^1].SimpleTag[^1].TagName = ReadString(ebml_size);
+                        if(this.m_Segment?.Tags.Count>0 && this.m_Segment.Tags[^1].SimpleTag.Count>0)
+                            if (this.m_Segment.Tags[^1].SimpleTag[^1] is SimpleTag st)
+                                st.TagName = ReadString(ebml_size);
                         break;
                     case 0x4487://TagString
-                        if (this.m_Segment?.Tags.Count > 0 && this.m_Segment?.Tags[^1].SimpleTag.Count > 0)
-                            this.m_Segment.Tags[^1].SimpleTag[^1].TagString = ReadString(ebml_size);
+                        if (this.m_Segment?.Tags.Count > 0 && this.m_Segment.Tags[^1].SimpleTag.Count > 0)
+                            if (this.m_Segment.Tags[^1].SimpleTag[^1] is SimpleTag st)
+                                st.TagString = ReadString(ebml_size);
                         break;
-                    //case 0x63C5://TagTrackUID
-                    //    if (this.m_Segment?.Tags.Count > 0 && this.m_Segment?.Tags[^1].SimpleTag.Count > 0)
-                    //        this.m_Segment.Tags[^1].SimpleTag[^1].TagTrackUID = ReadUint(ebml_size);
-                    //    break;
+                    case 0x63C5://TagTrackUID
+                        if (this.m_Segment?.Tags.Count > 0 && this.m_Segment.Tags[^1].SimpleTag.Count > 0)
+                            if (this.m_Segment.Tags[^1].SimpleTag[^1] is TargetTag st)
+                                st.TagTrackUID = this.ReadUint64(ebml_size);
+                        break;
                     case 0x1C53BB6B://Cues
                         if(this.m_Segment != null)
                             this.m_Segment.Cues = [];
@@ -272,6 +285,21 @@ namespace QSoft.Multimedia.Container
                         byte[] framed = new byte[ebml_size - 4];
                         stream.Read(framed, 0, framed.Length);
 
+                        //var sz = ebml_size - 4;
+                        //BinaryReader br = new(stream);
+                        //var aa = br.ReadBytes(4);
+                        //Array.Reverse(aa);
+                        //var a1 = BitConverter.ToInt32(aa);
+                        //aa = br.ReadBytes((int)a1);
+
+                        //if(sz == a1 + 4)
+                        //{
+
+                        //}
+                        //else
+                        //{
+                        //    System.Diagnostics.Trace.WriteLine("");
+                        //}
                         break;
                     case 0xA1://Block
                         System.Diagnostics.Trace.WriteLine($"Block:{ebml_size}");
@@ -308,8 +336,11 @@ namespace QSoft.Multimedia.Container
                 {
                     var index= new FrameIndex();
                     index.Posisiotn = oo.Position;
-                    index.Time = TimeSpan.FromSeconds(oo.Timestamp+ooo.TimeCode);
+                    index.Time = TimeSpan.FromMilliseconds(oo.Timestamp+ooo.TimeCode);
                     index.TrackNum = ooo.TrackNum;
+                    index.IsKeyFrame = ooo.IsKeyFrame;
+
+                    
                     yield return index;
                 }
             }
@@ -359,6 +390,19 @@ namespace QSoft.Multimedia.Container
 
             uint value = 0;
             for (int i=0;i<buffer.Length; i++)
+            {
+                value = (value << 8) | buffer[i];
+            }
+            return value;
+        }
+
+        ulong ReadUint64(int size)
+        {
+            Span<byte> buffer = stackalloc byte[size];
+            stream.Read(buffer);
+
+            ulong value = 0;
+            for (int i = 0; i < buffer.Length; i++)
             {
                 value = (value << 8) | buffer[i];
             }
@@ -477,18 +521,20 @@ namespace QSoft.Multimedia.Container
         public List<CueTrackPosition> CueTrackPositions { set; get; } = [];
     }
 
-
+    public class TargetTag
+    {
+        public ulong TagTrackUID { set; get; }
+    }
 
     public class SimpleTag
     {
         public string TagName { get; set; } = string.Empty;
         public string TagString { get; set; } = string.Empty;
-        public uint TagTrackUID { set; get; }
     }
 
     public class Tag
     {
-        public List<SimpleTag> SimpleTag { set; get; } = [];
+        public List<object> SimpleTag { set; get; } = [];
     }
 
     public class TrackEntryVideo
@@ -507,8 +553,9 @@ namespace QSoft.Multimedia.Container
         public string CodecID { set; get; } = string.Empty;
         public byte[] CodecPrivate { set; get; } = [];
         public TrackEntryVideo? Video { set; get; }
+        public string LanguageBCP47 { set; get; } = string.Empty;
 
-        
+
     }
 
 
@@ -528,8 +575,8 @@ namespace QSoft.Multimedia.Container
         public string WritingApp { set; get; } = string.Empty;
         public string MuxingApp { set; get; } = string.Empty;
         public uint DateUTC { set; get; }
-        public string Title { set; get; }
-        public byte[] SegmentUUID { set; get; }
+        public string Title { set; get; } = string.Empty;
+        public byte[] SegmentUUID { set; get; } = [];
     }
 
     public class SeekHead
@@ -564,6 +611,7 @@ namespace QSoft.Multimedia.Container
         public TimeSpan Duration { set; get; }
 
         public long Posisiotn { set; get; }
+        public bool IsKeyFrame { set; get; }
 
     }
     
