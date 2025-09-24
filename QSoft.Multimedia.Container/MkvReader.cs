@@ -281,25 +281,29 @@ namespace QSoft.Multimedia.Container
                         sb.Flag = (byte)stream.ReadByte();
                         if (this.m_Segment?.Clusters.Count > 0)
                             this.m_Segment.Clusters[^1].SimpleBlocks.Add(sb);
+                        sb.RawPos = stream.Position;
+                        sb.RawSize = ebml_size - 4;
+                        //byte[] framed = new byte[ebml_size - 4];
+                        //stream.Read(framed, 0, framed.Length);
 
-                        byte[] framed = new byte[ebml_size - 4];
-                        stream.Read(framed, 0, framed.Length);
+                        var sz = ebml_size - 4;
+                        BinaryReader br = new(stream);
+                        var pos1 = br.BaseStream.Position;
+                        while(true)
+                        {
+                            var aa = br.ReadBytes(4);
+                            Array.Reverse(aa);
+                            var a1 = BitConverter.ToInt32(aa);
+                            br.BaseStream.Position = br.BaseStream.Position + a1;
+                            var sz1 = br.BaseStream.Position - pos1;
+                            if(sz1 == sz)
+                            {
+                                break;
+                            }
+                        }
+                        
 
-                        //var sz = ebml_size - 4;
-                        //BinaryReader br = new(stream);
-                        //var aa = br.ReadBytes(4);
-                        //Array.Reverse(aa);
-                        //var a1 = BitConverter.ToInt32(aa);
-                        //aa = br.ReadBytes((int)a1);
 
-                        //if(sz == a1 + 4)
-                        //{
-
-                        //}
-                        //else
-                        //{
-                        //    System.Diagnostics.Trace.WriteLine("");
-                        //}
                         break;
                     case 0xA1://Block
                         System.Diagnostics.Trace.WriteLine($"Block:{ebml_size}");
@@ -330,6 +334,16 @@ namespace QSoft.Multimedia.Container
         public IEnumerator<FrameIndex> GetEnumerator()
         {
             if(this.m_Segment is null) yield break;
+            //foreach(var cue in this.m_Segment.Cues)
+            //{
+            //    foreach(var cuepos in cue.CueTrackPositions)
+            //    {
+            //        stream.Position = cuepos.CueClusterPosition + this.m_SegmentOffset;
+            //        var ebml_id = GetEBML_ID();
+            //        var ebml_size = GetEBML_Size();
+
+            //    }
+            //}
             foreach (var oo in this.m_Segment.Clusters)
             {
                 foreach (var ooo in oo.SimpleBlocks)
@@ -339,8 +353,22 @@ namespace QSoft.Multimedia.Container
                     index.Time = TimeSpan.FromMilliseconds(oo.Timestamp+ooo.TimeCode);
                     index.TrackNum = ooo.TrackNum;
                     index.IsKeyFrame = ooo.IsKeyFrame;
-
-                    
+                    stream.Position = ooo.RawPos;
+                    var sz = ooo.RawSize;
+                    BinaryReader br = new(stream);
+                    var pos1 = br.BaseStream.Position;
+                    while (true)
+                    {
+                        var aa = br.ReadBytes(4);
+                        Array.Reverse(aa);
+                        var a1 = BitConverter.ToInt32(aa);
+                        br.BaseStream.Position = br.BaseStream.Position + a1;
+                        var sz1 = br.BaseStream.Position - pos1;
+                        if (sz1 == sz)
+                        {
+                            break;
+                        }
+                    }
                     yield return index;
                 }
             }
@@ -496,7 +524,8 @@ namespace QSoft.Multimedia.Container
         public bool CanDrop => (this.Flag & 0x01) == 0x01;
         public byte Lacing=> (byte)((this.Flag & 0x06) >> 1);
         public bool IsDispaly => (this.Flag & 0x07) >> 3 == 0x01;
-
+        public long RawPos { set; get; }
+        public long RawSize { set; get; }
     }
 
     public class Cluster
