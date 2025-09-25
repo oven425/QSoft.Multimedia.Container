@@ -138,6 +138,7 @@ namespace QSoft.Multimedia.Container
                     case 0x63A2://CodecPrivate
                         if (this.m_Segment?.Tracks.Count > 0)
                             this.m_Segment.Tracks[^1].CodecPrivate = ReadBlob(ebml_size);
+                        AVCDecoderConfigurationRecord avc = new AVCDecoderConfigurationRecord(this.m_Segment.Tracks[^1].CodecPrivate);
                         break;
                     case 0x22B59D:
                         if (this.m_Segment?.Tracks.Count > 0)
@@ -584,6 +585,39 @@ namespace QSoft.Multimedia.Container
         public TrackEntryVideo? Video { set; get; }
         public string LanguageBCP47 { set; get; } = string.Empty;
 
+
+    }
+
+    //[Codec Mappings](https://www.matroska.org/technical/codec_specs.html)
+    //[音视频基础 FLV格式详解](https://zhuanlan.zhihu.com/p/406888863)
+    public class AVCDecoderConfigurationRecord
+    {
+        public AVCDecoderConfigurationRecord(byte[] src)
+        {
+            var span = src.AsSpan();
+            ConfigurationVersion = src[0];
+            AVCProfileIndication = src[1];
+            profile_compatibility = src[2];
+            AVCLevelIndication = src[3];
+            lengthSizeMinusOne = (byte)(1+src[4]&0x03);
+            numOfSequenceParameterSets = (byte)(src[5] & 0x1F);
+            var s = span.Slice(6, 2);
+            s.Reverse();
+            sequenceParameterSetLength = BitConverter.ToInt16(s);
+            var sps = span.Slice(8, sequenceParameterSetLength);
+            numOfPictureParameterSets = (byte)(src[8+ sequenceParameterSetLength] & 0x1F);
+        }
+        public byte ConfigurationVersion { set; get; }
+        public byte AVCProfileIndication { set; get; }
+        public byte profile_compatibility { set; get; }
+        public byte AVCLevelIndication { set; get; }
+
+        public byte lengthSizeMinusOne { set; get; } //（NALUSize的长度，计算方法为：1 + (lengthSizeMinusOne & 3)=4）
+
+        public byte numOfSequenceParameterSets { set; get; }//（低五位为SPS的个数，计算方法为：numOfSequenceParameterSets & 0x1F=1）
+        
+        public short sequenceParameterSetLength { set; get; }
+        public byte numOfPictureParameterSets { set; get; }
 
     }
 
