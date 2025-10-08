@@ -2,6 +2,7 @@
 using System.Buffers.Binary;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
 using System.Drawing;
 using System.IO;
@@ -12,9 +13,9 @@ using System.Text;
 using System.Threading.Tasks;
 //https://www.matroska.org/index.html
 //https://blog.csdn.net/xuweilmy/article/details/8985002
-namespace QSoft.Multimedia.Container
+namespace QSoft.Multimedia.Container.Mkv
 {
-    public class MkvReader(Stream stream) : IEnumerable<FrameIndex>
+    public class MkvReader(Stream stream)
     {
         int m_SegmentOffset = 0;
         public void Open()
@@ -137,8 +138,10 @@ namespace QSoft.Multimedia.Container
                         break;
                     case 0x63A2://CodecPrivate
                         if (this.m_Segment?.Tracks.Count > 0)
+                        {
                             this.m_Segment.Tracks[^1].CodecPrivate = ReadBlob(ebml_size);
-                        AVCDecoderConfigurationRecord avc = new AVCDecoderConfigurationRecord(this.m_Segment.Tracks[^1].CodecPrivate);
+                            this.m_AVCDecoderConfigurationRecord = new AVCDecoderConfigurationRecord(this.m_Segment.Tracks[^1].CodecPrivate);
+                        }
                         break;
                     case 0x22B59D:
                         if (this.m_Segment?.Tracks.Count > 0)
@@ -332,54 +335,55 @@ namespace QSoft.Multimedia.Container
             }
         }
 
-        public IEnumerator<FrameIndex> GetEnumerator()
+        void ParseH264(long rawsz, List<byte> rawbuf, bool iskeyframe)
+        {
+            BinaryReader br = new(stream);
+            var pos1 = br.BaseStream.Position;
+
+            var sz = rawsz;
+            if(iskeyframe && m_AVCDecoderConfigurationRecord is not null)
+            {
+                rawbuf.AddRange([0x00, 0x00, 0x00, 0x01]);
+                rawbuf.AddRange(this.m_AVCDecoderConfigurationRecord.SPSs[0]);
+                rawbuf.AddRange([0x00, 0x00, 0x00, 0x01]);
+                rawbuf.AddRange(this.m_AVCDecoderConfigurationRecord.PPSs[0]);
+            }
+            while (true)
+            {
+                var aa = br.ReadBytes(4);
+                Array.Reverse(aa);
+                var raw_size = BitConverter.ToInt32(aa);
+                var raw = new byte[raw_size];
+                br.BaseStream.Read(raw);
+                rawbuf.AddRange([0x00, 0x00, 0x00, 0x01]);
+                rawbuf.AddRange(raw);
+                var sz1 = br.BaseStream.Position - pos1;
+                if (sz1 == sz)
+                {
+                    break;
+                }
+            }
+        }
+        public IEnumerable<FrameIndex> GetAllFrames()
         {
             if(this.m_Segment is null) yield break;
-            //foreach(var cue in this.m_Segment.Cues)
-            //{
-            //    foreach(var cuepos in cue.CueTrackPositions)
-            //    {
-            //        stream.Position = cuepos.CueClusterPosition + this.m_SegmentOffset;
-            //        var ebml_id = GetEBML_ID();
-            //        var ebml_size = GetEBML_Size();
-
-            //    }
-            //}
+            List<byte> rawbuf = [];
             foreach (var oo in this.m_Segment.Clusters)
             {
                 foreach (var ooo in oo.SimpleBlocks)
                 {
+                    rawbuf.Clear();
                     var index= new FrameIndex();
                     index.Posisiotn = oo.Position;
                     index.Time = TimeSpan.FromMilliseconds(oo.Timestamp+ooo.TimeCode);
                     index.TrackNum = ooo.TrackNum;
                     index.IsKeyFrame = ooo.IsKeyFrame;
                     stream.Position = ooo.RawPos;
-                    var sz = ooo.RawSize;
-                    BinaryReader br = new(stream);
-                    var pos1 = br.BaseStream.Position;
-                    while (true)
-                    {
-                        var aa = br.ReadBytes(4);
-                        Array.Reverse(aa);
-                        var a1 = BitConverter.ToInt32(aa);
-                        br.BaseStream.Position = br.BaseStream.Position + a1;
-                        var sz1 = br.BaseStream.Position - pos1;
-                        if (sz1 == sz)
-                        {
-                            break;
-                        }
-                    }
+                    ParseH264(ooo.RawSize, rawbuf, ooo.IsKeyFrame);
+                    index.Raw = [.. rawbuf];
                     yield return index;
                 }
             }
-        }
-
-
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
         }
 
 
@@ -493,7 +497,7 @@ namespace QSoft.Multimedia.Container
         }
 
 
-
+        AVCDecoderConfigurationRecord? m_AVCDecoderConfigurationRecord;
         Segment? m_Segment;
         EbmlHeader? m_Header;
 
@@ -594,6 +598,7 @@ namespace QSoft.Multimedia.Container
     {
         public AVCDecoderConfigurationRecord(byte[] src)
         {
+            int offset = 0;
             var span = src.AsSpan();
             ConfigurationVersion = src[0];
             AVCProfileIndication = src[1];
@@ -605,8 +610,18 @@ namespace QSoft.Multimedia.Container
             s.Reverse();
             sequenceParameterSetLength = BitConverter.ToInt16(s);
             var sps = span.Slice(8, sequenceParameterSetLength);
+            SPSs.Add(sps.ToArray());
             numOfPictureParameterSets = (byte)(src[8+ sequenceParameterSetLength] & 0x1F);
+            offset = 8 + sequenceParameterSetLength;
+            s = span.Slice(offset + 1, 2);
+            s.Reverse();
+            pictureParameterSetLength = BitConverter.ToInt16(s);
+            var pps = span.Slice(offset+3, pictureParameterSetLength);
+            PPSs.Add(pps.ToArray());
         }
+
+        public List<byte[]> SPSs { set; get; } = [];
+        public List<byte[]> PPSs { set; get; } = [];
         public byte ConfigurationVersion { set; get; }
         public byte AVCProfileIndication { set; get; }
         public byte profile_compatibility { set; get; }
@@ -619,8 +634,11 @@ namespace QSoft.Multimedia.Container
         public short sequenceParameterSetLength { set; get; }
         public byte numOfPictureParameterSets { set; get; }
 
+        public short pictureParameterSetLength { set; get; }
+
     }
 
+    
 
     public class Seek
     {
@@ -667,15 +685,14 @@ namespace QSoft.Multimedia.Container
         public uint EBMLMAXSizeLength { set; get; }
     }
 
-    public class FrameIndex
+    public partial class FrameIndex
     {
         public int TrackNum { set; get; }
         public TimeSpan Time { set; get; }
-        public TimeSpan Duration { set; get; }
 
         public long Posisiotn { set; get; }
         public bool IsKeyFrame { set; get; }
 
+        public byte[] Raw { set; get; } = [];
     }
-    
 }

@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace QSoft.Multimedia.Container
+namespace QSoft.Multimedia.Container.Mkv
 {
     public class MkvWriter(System.IO.Stream stream)
     {

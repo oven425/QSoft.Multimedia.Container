@@ -12,9 +12,10 @@ Console.WriteLine("Hello, World!");
 
 //using var stream = File.OpenRead("aa.mkv");
 using var stream = File.OpenRead("../../../../matroska_test/testt.mkv");
-QSoft.Multimedia.Container.MkvReader mkvr = new QSoft.Multimedia.Container.MkvReader(stream);
+QSoft.Multimedia.Container.Mkv.MkvReader mkvr = new QSoft.Multimedia.Container.Mkv.MkvReader(stream);
 mkvr.Open();
-foreach(var oo in mkvr)
+
+foreach(var oo in mkvr.GetAllFrames())
 {
 
 }
