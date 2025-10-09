@@ -140,7 +140,10 @@ namespace QSoft.Multimedia.Container.Mkv
                         if (this.m_Segment?.Tracks.Count > 0)
                         {
                             this.m_Segment.Tracks[^1].CodecPrivate = ReadBlob(ebml_size);
-                            this.m_AVCDecoderConfigurationRecord = new AVCDecoderConfigurationRecord(this.m_Segment.Tracks[^1].CodecPrivate);
+                            if (this.m_Segment.Tracks[^1].CodecID == "V_MPEG4/ISO/AVC")
+                            {
+                                this.m_AVCDecoderConfigurationRecord = new AVCDecoderConfigurationRecord(this.m_Segment.Tracks[^1].CodecPrivate);
+                            }
                         }
                         break;
                     case 0x22B59D:
@@ -184,12 +187,19 @@ namespace QSoft.Multimedia.Container.Mkv
                                 vd.DisplayHeight = ReadUint(ebml_size);
                         break;
                     case 0xE1://Audio
+                        if (this.m_Segment?.Tracks.Count > 0)
+                            this.m_Segment.Tracks[^1].Audio = new();
                         break;
                     case 0xB5://SamplingFrequency
-                        System.Diagnostics.Trace.WriteLine($"SamplingFrequency:{ReadDouble(ebml_size)}");
+                        //System.Diagnostics.Trace.WriteLine($"SamplingFrequency:{ReadDouble(ebml_size)}");
+                        if (this.m_Segment?.Tracks.Count > 0)
+                            if (this.m_Segment.Tracks[^1].Audio is TrackEntryAudio ad)
+                                ad.SamplingFrequency = ReadDouble(ebml_size);
                         break;
                     case 0x9F://Channels
-                        System.Diagnostics.Trace.WriteLine($"Channels:{ReadUint(ebml_size)}");
+                        if (this.m_Segment?.Tracks.Count > 0)
+                            if (this.m_Segment.Tracks[^1].Audio is TrackEntryAudio ad)
+                                ad.Channels = ReadUint(ebml_size);
                         break;
                     case 0x6D80://ContentEncodings
                         break;
@@ -287,25 +297,26 @@ namespace QSoft.Multimedia.Container.Mkv
                             this.m_Segment.Clusters[^1].SimpleBlocks.Add(sb);
                         sb.RawPos = stream.Position;
                         sb.RawSize = ebml_size - 4;
+                        stream.Position = stream.Position + sb.RawSize;
                         //byte[] framed = new byte[ebml_size - 4];
                         //stream.Read(framed, 0, framed.Length);
 
-                        var sz = ebml_size - 4;
-                        BinaryReader br = new(stream);
-                        var pos1 = br.BaseStream.Position;
-                        while(true)
-                        {
-                            var aa = br.ReadBytes(4);
-                            Array.Reverse(aa);
-                            var a1 = BitConverter.ToInt32(aa);
-                            br.BaseStream.Position = br.BaseStream.Position + a1;
-                            var sz1 = br.BaseStream.Position - pos1;
-                            if(sz1 == sz)
-                            {
-                                break;
-                            }
-                        }
-                        
+                        //var sz = ebml_size - 4;
+                        //BinaryReader br = new(stream);
+                        //var pos1 = br.BaseStream.Position;
+                        //while(true)
+                        //{
+                        //    var aa = br.ReadBytes(4);
+                        //    Array.Reverse(aa);
+                        //    var a1 = BitConverter.ToInt32(aa);
+                        //    br.BaseStream.Position = br.BaseStream.Position + a1;
+                        //    var sz1 = br.BaseStream.Position - pos1;
+                        //    if(sz1 == sz)
+                        //    {
+                        //        break;
+                        //    }
+                        //}
+
 
 
                         break;
@@ -373,18 +384,80 @@ namespace QSoft.Multimedia.Container.Mkv
                 foreach (var ooo in oo.SimpleBlocks)
                 {
                     rawbuf.Clear();
-                    var index= new FrameIndex();
-                    index.Posisiotn = oo.Position;
-                    index.Time = TimeSpan.FromMilliseconds(oo.Timestamp+ooo.TimeCode);
-                    index.TrackNum = ooo.TrackNum;
-                    index.IsKeyFrame = ooo.IsKeyFrame;
+                    var index = new FrameIndex
+                    {
+                        Posisiotn = oo.Position,
+                        Time = TimeSpan.FromMilliseconds(oo.Timestamp + ooo.TimeCode),
+                        TrackNum = ooo.TrackNum,
+                        IsKeyFrame = ooo.IsKeyFrame
+                    };
                     stream.Position = ooo.RawPos;
-                    ParseH264(ooo.RawSize, rawbuf, ooo.IsKeyFrame);
-                    index.Raw = [.. rawbuf];
+                    var track = this.m_Segment.Tracks.FirstOrDefault(x => x.TrackNumber == index.TrackNum);
+                    if(track?.TrackType == 1)
+                    {
+                        ParseH264(ooo.RawSize, rawbuf, ooo.IsKeyFrame);
+                        index.Raw = [.. rawbuf];
+                    }
+                    else if(track?.TrackType == 2)
+                    {
+                        if(ooo.Lacing==3)
+                        {
+                            var count = stream.ReadByte();
+                            var basicsize = this.GetEBML_Size();
+                            List<byte[]> szs = [new byte[basicsize]];
+                            for (int i=0; i<count-1; i++)
+                            {
+                                var sz1 = this.GetEBML_Int();
+                                basicsize = basicsize + sz1;
+                                szs.Add(new byte[basicsize]);
+                            }
+                            var sss = ooo.RawSize - szs.Sum(x=>x.Length) - (stream.Position-ooo.RawPos);
+                            szs.Add(new byte[sss]);
+                            
+                            foreach (var sz in szs)
+                            {
+                                stream.Read(sz);
+                            }
+                            index.Raws = [.. szs];
+                        }
+                    }
+                        
                     yield return index;
                 }
             }
         }
+
+
+        int GetEBML_Int()
+        {
+            byte first = (byte)stream.ReadByte();
+            int length = 1;
+            byte mask = 0x80;
+            while ((first & mask) == 0 && mask != 0)
+            {
+                mask >>= 1;
+                length++;
+            }
+
+            if (length > 8)
+                throw new InvalidOperationException("Invalid EBML size encoding");
+            int value = (int)(first & (mask - 1));
+            if (length > 1)
+            {
+                Span<byte> buffer = stackalloc byte[length - 1];
+                stream.Read(buffer);
+                for (int i = 0; i < length - 1; i++)
+                    value = (value << 8) | buffer[i];
+            }
+
+            //2 ^ ((7 * n) - 1) ^ -1
+            var aa = (int)Math.Pow(2, 7 * length - 1) - 1;
+            value = value - aa;
+            return value;
+        }
+
+
+
 
 
         double ReadDouble(int size)
@@ -527,6 +600,9 @@ namespace QSoft.Multimedia.Container.Mkv
         public byte Flag { set; get; }
         public bool IsKeyFrame => (this.Flag & 0x80) >> 7 == 0x01;
         public bool CanDrop => (this.Flag & 0x01) == 0x01;
+        /// <summary>
+        /// 00:no lacing, 01:Xiph lacing, 10:fixed-size lacing, 11:EBML lacing
+        /// </summary>
         public byte Lacing=> (byte)((this.Flag & 0x06) >> 1);
         public bool IsDispaly => (this.Flag & 0x07) >> 3 == 0x01;
         public long RawPos { set; get; }
@@ -579,17 +655,27 @@ namespace QSoft.Multimedia.Container.Mkv
         public uint DisplayHeight { set; get; }
     }
 
+    public class TrackEntryAudio
+    {
+        public double SamplingFrequency { set; get; }
+        public uint Channels { set; get; }
+    }
+
     public class TrackEntry
     {
         public uint TrackNumber { set; get; }
+        /// <summary>
+        /// 1 - video, 2 - audio, 3 - complex, 16 - logo, 17 - subtitle, 18 - buttons, 32 - control, 33 - metadata
+        /// </summary>
         public uint TrackType { set; get; }
         public uint TrackUID { set; get; }
         public string CodecID { set; get; } = string.Empty;
         public byte[] CodecPrivate { set; get; } = [];
         public TrackEntryVideo? Video { set; get; }
+        public TrackEntryAudio? Audio { set; get; }
         public string LanguageBCP47 { set; get; } = string.Empty;
 
-
+        
     }
 
     //[Codec Mappings](https://www.matroska.org/technical/codec_specs.html)
@@ -692,7 +778,7 @@ namespace QSoft.Multimedia.Container.Mkv
 
         public long Posisiotn { set; get; }
         public bool IsKeyFrame { set; get; }
-
+        public IEnumerable<byte[]> Raws { set; get; }
         public byte[] Raw { set; get; } = [];
     }
 }
