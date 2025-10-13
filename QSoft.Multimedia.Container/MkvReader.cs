@@ -136,6 +136,10 @@ namespace QSoft.Multimedia.Container.Mkv
                         if (this.m_Segment?.Tracks.Count > 0)
                             this.m_Segment.Tracks[^1].CodecID = ReadString(ebml_size);
                         break;
+                    case 0x536E://Name
+                        if (this.m_Segment?.Tracks.Count > 0)
+                            this.m_Segment.Tracks[^1].Name = ReadString(ebml_size);
+                        break;
                     case 0x63A2://CodecPrivate
                         if (this.m_Segment?.Tracks.Count > 0)
                         {
@@ -143,6 +147,10 @@ namespace QSoft.Multimedia.Container.Mkv
                             if (this.m_Segment.Tracks[^1].CodecID == "V_MPEG4/ISO/AVC")
                             {
                                 this.m_AVCDecoderConfigurationRecord = new AVCDecoderConfigurationRecord(this.m_Segment.Tracks[^1].CodecPrivate);
+                            }
+                            else if (this.m_Segment.Tracks[^1].CodecID == "V_MS/VFW/FOURCC")
+                            {
+                                var bh = MemoryMarshal.Read<BITMAPINFOHEADER>(this.m_Segment.Tracks[^1].CodecPrivate);
                             }
                         }
                         break;
@@ -160,7 +168,8 @@ namespace QSoft.Multimedia.Container.Mkv
                         System.Diagnostics.Trace.WriteLine($"DefaultDuration:{ReadUint(ebml_size)}");
                         break;
                     case 0x22B59C://Language
-                        System.Diagnostics.Trace.WriteLine($"Language:{ReadString(ebml_size)}");
+                        if (this.m_Segment?.Tracks.Count > 0)
+                            this.m_Segment.Tracks[^1].Language = ReadString(ebml_size);
                         break;
                     case 0xE0://Video
                         if (this.m_Segment?.Tracks.Count > 0)
@@ -191,10 +200,14 @@ namespace QSoft.Multimedia.Container.Mkv
                             this.m_Segment.Tracks[^1].Audio = new();
                         break;
                     case 0xB5://SamplingFrequency
-                        //System.Diagnostics.Trace.WriteLine($"SamplingFrequency:{ReadDouble(ebml_size)}");
                         if (this.m_Segment?.Tracks.Count > 0)
                             if (this.m_Segment.Tracks[^1].Audio is TrackEntryAudio ad)
                                 ad.SamplingFrequency = ReadDouble(ebml_size);
+                        break;
+                    case 0x78B5:
+                        if (this.m_Segment?.Tracks.Count > 0)
+                            if (this.m_Segment.Tracks[^1].Audio is TrackEntryAudio ad)
+                                ad.OutputSamplingFrequency = ReadDouble(ebml_size);
                         break;
                     case 0x9F://Channels
                         if (this.m_Segment?.Tracks.Count > 0)
@@ -237,6 +250,16 @@ namespace QSoft.Multimedia.Container.Mkv
                         if (this.m_Segment?.Tags.Count > 0 && this.m_Segment.Tags[^1].SimpleTag.Count > 0)
                             if (this.m_Segment.Tags[^1].SimpleTag[^1] is SimpleTag st)
                                 st.TagString = ReadString(ebml_size);
+                        break;
+                    case 0x447A://TagLanguage
+                        if (this.m_Segment?.Tags.Count > 0 && this.m_Segment.Tags[^1].SimpleTag.Count > 0)
+                            if (this.m_Segment.Tags[^1].SimpleTag[^1] is SimpleTag st)
+                                st.TagLanguage = ReadString(ebml_size);
+                        break;
+                    case 0x4484://TagDefault
+                        if (this.m_Segment?.Tags.Count > 0 && this.m_Segment.Tags[^1].SimpleTag.Count > 0)
+                            if (this.m_Segment.Tags[^1].SimpleTag[^1] is SimpleTag st)
+                                st.TagDefault = this.ReadUint(ebml_size);
                         break;
                     case 0x63C5://TagTrackUID
                         if (this.m_Segment?.Tags.Count > 0 && this.m_Segment.Tags[^1].SimpleTag.Count > 0)
@@ -298,26 +321,6 @@ namespace QSoft.Multimedia.Container.Mkv
                         sb.RawPos = stream.Position;
                         sb.RawSize = ebml_size - 4;
                         stream.Position = stream.Position + sb.RawSize;
-                        //byte[] framed = new byte[ebml_size - 4];
-                        //stream.Read(framed, 0, framed.Length);
-
-                        //var sz = ebml_size - 4;
-                        //BinaryReader br = new(stream);
-                        //var pos1 = br.BaseStream.Position;
-                        //while(true)
-                        //{
-                        //    var aa = br.ReadBytes(4);
-                        //    Array.Reverse(aa);
-                        //    var a1 = BitConverter.ToInt32(aa);
-                        //    br.BaseStream.Position = br.BaseStream.Position + a1;
-                        //    var sz1 = br.BaseStream.Position - pos1;
-                        //    if(sz1 == sz)
-                        //    {
-                        //        break;
-                        //    }
-                        //}
-
-
 
                         break;
                     case 0xA1://Block
@@ -339,25 +342,25 @@ namespace QSoft.Multimedia.Container.Mkv
                         stream.Position += ebml_size;
                         break;
                     default:
-                        System.Diagnostics.Trace.WriteLine($"{ebml_id:X}");
+                        System.Diagnostics.Trace.WriteLine($"id:0x{ebml_id:X} size:{ebml_size}");
                         stream.Position += ebml_size;
                         break;
                 }
             }
         }
 
-        void ParseH264(long rawsz, List<byte> rawbuf, bool iskeyframe)
+        void ParseH264(long rawsz, List<byte[]> rawbuf, bool iskeyframe)
         {
             BinaryReader br = new(stream);
             var pos1 = br.BaseStream.Position;
-
+            List<byte> raww = [];
             var sz = rawsz;
             if(iskeyframe && m_AVCDecoderConfigurationRecord is not null)
             {
-                rawbuf.AddRange([0x00, 0x00, 0x00, 0x01]);
-                rawbuf.AddRange(this.m_AVCDecoderConfigurationRecord.SPSs[0]);
-                rawbuf.AddRange([0x00, 0x00, 0x00, 0x01]);
-                rawbuf.AddRange(this.m_AVCDecoderConfigurationRecord.PPSs[0]);
+                raww.AddRange([0x00, 0x00, 0x00, 0x01]);
+                raww.AddRange(this.m_AVCDecoderConfigurationRecord.SPSs[0]);
+                raww.AddRange([0x00, 0x00, 0x00, 0x01]);
+                raww.AddRange(this.m_AVCDecoderConfigurationRecord.PPSs[0]);
             }
             while (true)
             {
@@ -366,11 +369,12 @@ namespace QSoft.Multimedia.Container.Mkv
                 var raw_size = BitConverter.ToInt32(aa);
                 var raw = new byte[raw_size];
                 br.BaseStream.Read(raw);
-                rawbuf.AddRange([0x00, 0x00, 0x00, 0x01]);
-                rawbuf.AddRange(raw);
+                raww.AddRange([0x00, 0x00, 0x00, 0x01]);
+                raww.AddRange(raw);
                 var sz1 = br.BaseStream.Position - pos1;
                 if (sz1 == sz)
                 {
+                    rawbuf.Add([.. raww]);
                     break;
                 }
             }
@@ -378,7 +382,7 @@ namespace QSoft.Multimedia.Container.Mkv
         public IEnumerable<FrameIndex> GetAllFrames()
         {
             if(this.m_Segment is null) yield break;
-            List<byte> rawbuf = [];
+            List<byte[]> rawbuf = [];
             foreach (var oo in this.m_Segment.Clusters)
             {
                 foreach (var ooo in oo.SimpleBlocks)
@@ -396,7 +400,7 @@ namespace QSoft.Multimedia.Container.Mkv
                     if(track?.TrackType == 1)
                     {
                         ParseH264(ooo.RawSize, rawbuf, ooo.IsKeyFrame);
-                        index.Raw = [.. rawbuf];
+                        index.Raws = [.. rawbuf];
                     }
                     else if(track?.TrackType == 2)
                     {
@@ -593,6 +597,22 @@ namespace QSoft.Multimedia.Container.Mkv
         
     }
 
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public struct BITMAPINFOHEADER
+    {
+        public uint biSize;              // DWORD = 4 bytes
+        public int biWidth;              // LONG = 4 bytes
+        public int biHeight;             // LONG = 4 bytes
+        public ushort biPlanes;          // WORD = 2 bytes
+        public ushort biBitCount;        // WORD = 2 bytes
+        public uint biCompression;       // DWORD = 4 bytes
+        public uint biSizeImage;         // DWORD = 4 bytes
+        public int biXPelsPerMeter;      // LONG = 4 bytes
+        public int biYPelsPerMeter;      // LONG = 4 bytes
+        public uint biClrUsed;           // DWORD = 4 bytes
+        public uint biClrImportant;      // DWORD = 4 bytes
+    }
+
     public class SimpleBlock
     {
         public int TrackNum { set; get; }
@@ -640,6 +660,8 @@ namespace QSoft.Multimedia.Container.Mkv
     {
         public string TagName { get; set; } = string.Empty;
         public string TagString { get; set; } = string.Empty;
+        public string TagLanguage { set; get; } = string.Empty;
+        public uint? TagDefault { set; get; }
     }
 
     public class Tag
@@ -658,6 +680,7 @@ namespace QSoft.Multimedia.Container.Mkv
     public class TrackEntryAudio
     {
         public double SamplingFrequency { set; get; }
+        public double OutputSamplingFrequency { set; get; }
         public uint Channels { set; get; }
     }
 
@@ -670,12 +693,15 @@ namespace QSoft.Multimedia.Container.Mkv
         public uint TrackType { set; get; }
         public uint TrackUID { set; get; }
         public string CodecID { set; get; } = string.Empty;
+        public string Name { set; get; } =string.Empty;
         public byte[] CodecPrivate { set; get; } = [];
         public TrackEntryVideo? Video { set; get; }
         public TrackEntryAudio? Audio { set; get; }
         public string LanguageBCP47 { set; get; } = string.Empty;
+        public string Language { set; get; } = string.Empty;
 
-        
+
+
     }
 
     //[Codec Mappings](https://www.matroska.org/technical/codec_specs.html)
@@ -778,7 +804,6 @@ namespace QSoft.Multimedia.Container.Mkv
 
         public long Posisiotn { set; get; }
         public bool IsKeyFrame { set; get; }
-        public IEnumerable<byte[]> Raws { set; get; }
-        public byte[] Raw { set; get; } = [];
+        public IEnumerable<byte[]> Raws { set; get; } = [];
     }
 }
