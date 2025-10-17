@@ -237,6 +237,11 @@ namespace QSoft.Multimedia.Container.Mkv
                         if (this.m_Segment?.Tags?.Count > 0)
                             this.m_Segment.Tags[^1].SimpleTag.Add(new TargetTag());
                         break;
+                    case 0x68CA://TargetTypeValue
+                        if (this.m_Segment?.Tags.Count > 0 && this.m_Segment.Tags[^1].SimpleTag.Count > 0)
+                            if (this.m_Segment.Tags[^1].SimpleTag[^1] is TargetTag st)
+                                st.TargetTypeValue = ReadUint(ebml_size);
+                        break;
                     case 0x67C8://SimpleTag
                         if (this.m_Segment?.Tags?.Count > 0)
                             this.m_Segment.Tags[^1].SimpleTag.Add(new SimpleTag());
@@ -653,6 +658,7 @@ namespace QSoft.Multimedia.Container.Mkv
 
     public class TargetTag
     {
+        public uint TargetTypeValue { set; get; }
         public ulong TagTrackUID { set; get; }
     }
 

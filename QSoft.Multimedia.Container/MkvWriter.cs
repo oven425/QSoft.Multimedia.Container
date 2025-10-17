@@ -10,6 +10,7 @@ namespace QSoft.Multimedia.Container.Mkv
 {
     public class MkvWriter(System.IO.Stream stream)
     {
+        MemoryStream MemoryStream = new MemoryStream();
         public void Open()
         {
             WritetEBML_ID(0x1a45dfa3);
@@ -20,8 +21,16 @@ namespace QSoft.Multimedia.Container.Mkv
             WriteEBML_Uint(2);
             WritetEBML_ID(0x4285);
             WriteEBML_Uint(2);
+        }
 
+        public void WriteSegmentInfo(SegmentInfo data)
+        {
+            WritetEBML_ID(0x1549A966);
+            WriteEBML_VINT(0);
+        }
 
+        public void AddTrack(int tracknum, string codec)
+        {
 
         }
 
