@@ -2,7 +2,7 @@
 Console.WriteLine("Hello, World!");
 
 
-using (var stream_w = File.Open("aa.mkv", FileMode.OpenOrCreate))
+using (var stream_w = File.Open("../../../../matroska_test/aa.mkv", FileMode.OpenOrCreate))
 {
     QSoft.Multimedia.Container.Mkv.MkvWriter mkvw = new(stream_w);
     mkvw.Open();

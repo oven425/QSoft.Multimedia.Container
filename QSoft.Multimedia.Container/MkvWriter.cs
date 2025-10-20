@@ -10,23 +10,38 @@ namespace QSoft.Multimedia.Container.Mkv
 {
     public class MkvWriter(System.IO.Stream stream)
     {
-        MemoryStream MemoryStream = new MemoryStream();
+        MemoryStream MemoryStream = new();
         public void Open()
         {
-            WritetEBML_ID(0x1a45dfa3);
-            WriteEBML_VINT(25);
-            WritetEBML_ID(0x4282);
-            WriteEBML_String("matroska");
-            WritetEBML_ID(0x4287);
-            WriteEBML_Uint(2);
-            WritetEBML_ID(0x4285);
-            WriteEBML_Uint(2);
+            EbmlHeader header = new()
+            {
+                EBMLVersion = 1,
+                EBMLReadVersion = 1,
+                EBMLMaxIDLength = 4,
+                EBMLMAXSizeLength = 8,
+                DocTypes = "matroska",
+                DocTypeVersion = 4, 
+                DocTypeReadVersion = 2,
+            };
+            //WritetEBML_ID(0x1a45dfa3, MemoryStream);
+            //WriteEBML_VINT(25, MemoryStream);
+
+            //WritetEBML_ID(0x4282, MemoryStream);
+            //WriteEBML_String("matroska", MemoryStream);
+            //WritetEBML_ID(0x4287, MemoryStream);
+            //WriteEBML_Uint(2, MemoryStream);
+            //WritetEBML_ID(0x4285, MemoryStream);
+            //WriteEBML_Uint(2, MemoryStream);
+            //MemoryStream.Position = 0;
+            //MemoryStream.CopyTo(stream);
         }
 
         public void WriteSegmentInfo(SegmentInfo data)
         {
-            WritetEBML_ID(0x1549A966);
-            WriteEBML_VINT(0);
+            //WritetEBML_ID(0x1549A966);
+            //WriteEBML_VINT(0);
+            //WritetEBML_ID(0x00004d80);
+            //WriteEBML_String("12345");
         }
 
         public void AddTrack(int tracknum, string codec)
@@ -35,7 +50,7 @@ namespace QSoft.Multimedia.Container.Mkv
         }
 
 
-        void WriteEBML_Uint(int data)
+        void WriteEBML_Uint(int data, Stream stream)
         {
             var count = data switch
             {
@@ -45,7 +60,7 @@ namespace QSoft.Multimedia.Container.Mkv
                 <= 268435455 => (4),
                 _ => (0)
             };
-            WriteEBML_VINT(count);
+            WriteEBML_VINT(count, stream);
             var s1 = MemoryMarshal.CreateSpan(ref data, 1);
             var s2 = MemoryMarshal.AsBytes(s1);
             var buf = s2[..count];
@@ -53,9 +68,9 @@ namespace QSoft.Multimedia.Container.Mkv
             stream.Write(buf);
         }
 
-        void WriteEBML_String(string data)
+        void WriteEBML_String(string data, Stream stream)
         {
-            WriteEBML_VINT(data.Length);
+            WriteEBML_VINT(data.Length, stream);
             var buf = Encoding.UTF8.GetBytes(data);
             stream.Write(buf);
 
@@ -64,7 +79,7 @@ namespace QSoft.Multimedia.Container.Mkv
             //return Encoding.UTF8.GetString(buffer);
         }
 
-        void WritetEBML_ID(int data)
+        void WritetEBML_ID(int data, Stream stream)
         {
             var count = data switch
             {
@@ -96,7 +111,7 @@ namespace QSoft.Multimedia.Container.Mkv
 
         }
 
-        void WriteEBML_VINT(int data)
+        void WriteEBML_VINT(int data, Stream stream)
         {
             var (bitmask, count) = data switch
             {
