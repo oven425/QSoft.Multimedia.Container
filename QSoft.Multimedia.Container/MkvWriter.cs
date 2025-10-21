@@ -23,18 +23,31 @@ namespace QSoft.Multimedia.Container.Mkv
                 DocTypeVersion = 4, 
                 DocTypeReadVersion = 2,
             };
-            //WritetEBML_ID(0x1a45dfa3, MemoryStream);
-            //WriteEBML_VINT(25, MemoryStream);
+            MemoryStream.SetLength(0);
+            WritetEBML_ID(0x4286, MemoryStream);
+            WriteEBML_Uint(header.EBMLVersion, MemoryStream);
+            WritetEBML_ID(0x42F7, MemoryStream);
+            WriteEBML_Uint(header.EBMLReadVersion, MemoryStream);
+            WritetEBML_ID(0x42F2, MemoryStream);
+            WriteEBML_Uint(header.EBMLMaxIDLength, MemoryStream);
+            WritetEBML_ID(0x42F3, MemoryStream);
+            WriteEBML_Uint(header.EBMLMAXSizeLength, MemoryStream);
+            WritetEBML_ID(0x4282, MemoryStream);
+            WriteEBML_String("matroska", MemoryStream);
+            WritetEBML_ID(0x4287, MemoryStream);
+            WriteEBML_Uint(header.DocTypeVersion, MemoryStream);
+            WritetEBML_ID(0x4285, MemoryStream);
+            WriteEBML_Uint(header.DocTypeReadVersion, MemoryStream);
 
-            //WritetEBML_ID(0x4282, MemoryStream);
-            //WriteEBML_String("matroska", MemoryStream);
-            //WritetEBML_ID(0x4287, MemoryStream);
-            //WriteEBML_Uint(2, MemoryStream);
-            //WritetEBML_ID(0x4285, MemoryStream);
-            //WriteEBML_Uint(2, MemoryStream);
-            //MemoryStream.Position = 0;
-            //MemoryStream.CopyTo(stream);
+
+            WritetEBML_ID(0x1a45dfa3, stream);
+            WriteEBML_VINT((int)MemoryStream.Length, stream);
+            MemoryStream.Position = 0;
+            MemoryStream.CopyTo(stream);
+
         }
+
+
 
         public void WriteSegmentInfo(SegmentInfo data)
         {
@@ -50,7 +63,7 @@ namespace QSoft.Multimedia.Container.Mkv
         }
 
 
-        void WriteEBML_Uint(int data, Stream stream)
+        void WriteEBML_Uint(uint data, Stream stream)
         {
             var count = data switch
             {

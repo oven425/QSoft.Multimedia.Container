@@ -103,7 +103,7 @@ namespace QSoft.Multimedia.Container.Mkv
                         break;
                     case 0x4461://DateUTC
                         if (this.m_Segment?.SegmentInfo != null)
-                            this.m_Segment.SegmentInfo.DateUTC = ReadUint(ebml_size);
+                            this.m_Segment.SegmentInfo.DateUTC = ReadUint64(ebml_size);
                         break;
                     case 0x73A4://SegmentUUID
                         if (this.m_Segment?.SegmentInfo != null)
@@ -773,7 +773,7 @@ namespace QSoft.Multimedia.Container.Mkv
         public uint TimestampScale { set; get; }
         public string WritingApp { set; get; } = string.Empty;
         public string MuxingApp { set; get; } = string.Empty;
-        public uint DateUTC { set; get; }
+        public ulong DateUTC { set; get; }
         public string Title { set; get; } = string.Empty;
         public byte[] SegmentUUID { set; get; } = [];
     }
