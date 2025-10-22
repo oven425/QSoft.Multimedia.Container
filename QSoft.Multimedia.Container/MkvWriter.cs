@@ -172,3 +172,15 @@ namespace QSoft.Multimedia.Container.Mkv
         }
     }
 }
+
+public static class EbmlExtension
+{
+    public static DateTime NanoSecToDateUTC(this ulong src)
+    {
+        var sec = src / 1000000000;
+        var ts = TimeSpan.FromSeconds(sec);
+        DateTime dd = new DateTime(2001, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var d1 = dd + ts;
+        return d1;
+    }
+}
