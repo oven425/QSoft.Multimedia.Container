@@ -582,7 +582,7 @@ namespace QSoft.Multimedia.Container.Mkv
         AVCDecoderConfigurationRecord? m_AVCDecoderConfigurationRecord;
         Segment? m_Segment;
         EbmlHeader? m_Header;
-
+        public EbmlHeader? Header => m_Header;
         public TimeSpan Duration
         {
             get

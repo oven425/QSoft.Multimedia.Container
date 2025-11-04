@@ -2,15 +2,7 @@
 Console.WriteLine("Hello, World!");
 
 
-using (var stream_w = File.Open("../../../../matroska_test/aa.mkv", FileMode.OpenOrCreate))
-{
-    QSoft.Multimedia.Container.Mkv.MkvWriter mkvw = new(stream_w);
-    mkvw.Open();
-    //mkvw.WriteSegmentInfo(new QSoft.Multimedia.Container.Mkv.SegmentInfo()
-    //{
 
-    //});
-}
 
 
 
@@ -25,4 +17,22 @@ mkvr.Open();
 foreach(var oo in mkvr.GetAllFrames().Index())
 {
     //File.WriteAllBytes($"{oo.Index}.h264", oo.Item.Raws.ElementAt(0));
+}
+
+
+using (var stream_w = File.Open("../../../../matroska_test/aa.mkv", FileMode.OpenOrCreate))
+{
+    QSoft.Multimedia.Container.Mkv.MkvWriter mkvw = new(stream_w);
+    mkvw.Open();
+    if(mkvr.Header != null)
+    {
+        mkvw.WriteEbmlHeader(mkvr.Header);
+    }
+
+
+
+    //mkvw.WriteSegmentInfo(new QSoft.Multimedia.Container.Mkv.SegmentInfo()
+    //{
+
+    //});
 }

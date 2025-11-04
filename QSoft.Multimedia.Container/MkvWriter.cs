@@ -23,6 +23,12 @@ namespace QSoft.Multimedia.Container.Mkv
                 DocTypeVersion = 4, 
                 DocTypeReadVersion = 2,
             };
+            
+
+        }
+
+        public void WriteEbmlHeader(EbmlHeader header)
+        {
             MemoryStream.SetLength(0);
             WritetEBML_ID(0x4286, MemoryStream);
             WriteEBML_Uint(header.EBMLVersion, MemoryStream);
@@ -44,7 +50,6 @@ namespace QSoft.Multimedia.Container.Mkv
             WriteEBML_VINT((int)MemoryStream.Length, stream);
             MemoryStream.Position = 0;
             MemoryStream.CopyTo(stream);
-
         }
 
 
@@ -173,14 +178,4 @@ namespace QSoft.Multimedia.Container.Mkv
     }
 }
 
-public static class EbmlExtension
-{
-    public static DateTime NanoSecToDateUTC(this ulong src)
-    {
-        var sec = src / 1000000000;
-        var ts = TimeSpan.FromSeconds(sec);
-        DateTime dd = new DateTime(2001, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        var d1 = dd + ts;
-        return d1;
-    }
-}
+
